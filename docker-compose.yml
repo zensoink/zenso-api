@@ -1,0 +1,39 @@
+# docker-compose.yml
+version: '3.9'
+
+services:
+  # ===== PostgreSQL Database =====
+  postgres:
+    image: postgres:16-alpine
+    container_name: zenso_postgres
+    
+    # ✅ Environment variables z .env
+    environment:
+      # PostgreSQL requires POSTGRES_* variables
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    
+    # Expose port
+    ports:
+      - '${DB_PORT}:5432'
+    
+    # Persist data (volumem na dysku)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    # Health check (czy baza żyje?)
+    healthcheck:
+      # pg_isready sprawdza czy PostgreSQL accept connections
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME}']
+      interval: 10s      # co 10 sekund
+      timeout: 5s        # timeout 5 sekund
+      retries: 5         # spróbuj 5 razy
+      start_period: 10s  # czekaj 10s zanim zaczna testy
+    
+    # Restart na crash
+    restart: unless-stopped
+
+volumes:
+  # Named volume (persisted data)
+  postgres_data:
