@@ -9,7 +9,7 @@ env:
   RETENTION_DAYS: 30
 
 jobs:
-  install:
+  setup:
     runs-on: ubuntu-latest
     outputs:
       cache-key: ${{ steps.cache-key.outputs.cache-key }}
@@ -36,9 +36,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-${{ env.NODE_VERSION }}-pnpm-cache-
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run db:generate
 
   lint:
-    needs: install
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -53,7 +54,7 @@ jobs:
           path: |
             node_modules
             ~/.pnpm-store
-          key: ${{ needs.install.outputs.cache-key }}
+          key: ${{ needs.setup.outputs.cache-key }}
       - run: pnpm run lint
       - uses: actions/upload-artifact@v4
         if: always()
@@ -61,8 +62,9 @@ jobs:
           name: lint-report
           path: lint-report/
           retention-days: ${{ env.RETENTION_DAYS }}
+
   test:
-    needs: install
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -77,8 +79,8 @@ jobs:
           path: |
             node_modules
             ~/.pnpm-store
-          key: ${{ needs.install.outputs.cache-key }}
-      - run: pnpm run test:no-watch
+          key: ${{ needs.setup.outputs.cache-key }}
+      - run: pnpm run test
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -87,13 +89,13 @@ jobs:
           retention-days: ${{ env.RETENTION_DAYS }}
 
   build:
-    needs: [install, lint, test]
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Enable Corepack
+        run: corepack enable
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -102,7 +104,7 @@ jobs:
           path: |
             node_modules
             ~/.pnpm-store
-          key: ${{ needs.install.outputs.cache-key }}
+          key: ${{ needs.setup.outputs.cache-key }}
       - run: pnpm run build
       - uses: actions/upload-artifact@v4
         if: always()
