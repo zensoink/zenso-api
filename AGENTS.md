@@ -1,374 +1,205 @@
-# AGENTS.md - Development Guidelines for Zenso API
+# AGENTS.md - Zenso API Development Guidelines
 
-## Zenso API – Development Agents & AI Assistants
+## Overview
 
-This document defines how AI agents, Claude, and development assistants should interact with this codebase. It serves as a **context specification** for LLM-based tools and automated workflows.
+Zenso API is a **smart widget rendering backend** for IoT devices (TRMNL/e-ink displays). Key constraints:
 
----
-
-## 🤖 Agent Identity
-
-### Primary Use Case
-
-Zenso API is a **smart widget rendering backend** for IoT devices. Agents working on this codebase should understand:
-
-- Custom widgets are **data-driven** (user provides data, widget renders it)
-- Rendering is **server-side** (Puppeteer on backend, image sent to device)
-- Performance is **critical** (IoT devices have limited compute, network)
-- Caching is **essential** (hash-based change detection for bandwidth optimization)
-
-### Core Constraints
-
-1. **No frontend** – This is backend-only. No React/Vue/Svelte.
-2. **Device-first** – Always consider TRMNL, e-ink display limitations (small screens, low bandwidth).
-3. **Templating** – LiquidJS is the standard. No other template engines.
-4. **Database** – PostgreSQL + Prisma. TypeORM is deprecated in favor of Prisma.
+- Backend-only (no frontend frameworks)
+- Server-side rendering with Puppeteer
+- LiquidJS templating, Prisma ORM, PostgreSQL
 
 ---
 
-## 📋 Codebase Overview for Agents
+## Build & Test Commands
 
-### Current Tech Stack (as of Jan 2026)
+```bash
+# Development
+pnpm run start:dev        # Watch mode
+pnpm run build            # Production build
+pnpm run start:prod       # Run compiled
 
-```
-Backend:
-  - NestJS 11 (framework)
-  - Prisma 7 (ORM)
-  - PostgreSQL 16 (database)
-  - LiquidJS 10 (templating)
-  - Puppeteer 24 (rendering)
-  - Sharp 0.34 (image processing)
+# Linting & Formatting
+pnpm run lint             # ESLint check
+pnpm run lint:fix         # Auto-fix linting
+pnpm run format           # Format code (Prettier)
 
-Testing:
-  - Jest 30
-  - Supertest 7 (HTTP testing)
+# Testing
+pnpm exec jest --testPathPattern=users.service.spec.ts   # Single test file
+pnpm exec jest src/users/users.service.spec.ts --watch  # Watch single test
+pnpm run test              # All tests once
+pnpm run test:watch        # Watch mode
+pnpm run test:cov          # Coverage report
+pnpm run test:e2e          # E2E tests
 
-Development:
-  - TypeScript 5.7
-  - ESLint + Prettier
-  - ts-node (dev runner)
+# Database
+npx prisma generate         # Regenerate client
+npx prisma migrate dev      # Create migration
+npx prisma migrate deploy   # Deploy migrations
+npx prisma db push          # Sync schema (dev)
+npx prisma studio            # DB UI
 ```
 
-### Do NOT Use
-
-- ❌ TypeORM (deprecated, use Prisma)
-- ❌ REST client libraries (use Prisma Client directly)
-- ❌ Template engines other than LiquidJS
-- ❌ GraphQL (not in roadmap)
-- ❌ Frontend frameworks (this is backend-only)
-- ❌ localStorage/browser APIs (server-side only)
-
 ---
 
-## 📝 Code Style & Conventions
+## Code Style
 
-### NestJS Patterns
+### TypeScript Config (from tsconfig.json)
 
-- Use **services** for business logic
-- Use **controllers** for HTTP routes
-- Use **DTOs** (Data Transfer Objects) for validation
-- Use **guards** for cross-cutting concerns (auth, rate-limit)
-- Use **pipes** for input transformation/validation
+- **Strict mode enabled**: `strictNullChecks`, `noImplicitAny`, `strictBindCallApply`
+- **Decorators**: `experimentalDecorators`, `emitDecoratorMetadata`
+- **Target**: ES2023, CommonJS modules
+
+### Formatting (from .prettierrc)
+
+- 2 spaces, no tabs
+- Single quotes
+- Semicolons required
+- 120 char line width
+- Trailing commas (ES5)
+- Arrow parens: avoid when unnecessary
+
+### Import Order (enforced by eslint-plugin-simple-import-sort)
+
+1. NestJS/External packages (`@nestjs/*`, `node_modules`)
+2. Relative imports (`./`, `../`)
+3. **Sort within groups alphabetically**
+
+```typescript
+// Correct import order
+import { Body, Controller, Post } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateUserDTO } from './dto/create-user.dto';
+import { UsersService } from './users.service';
+```
 
 ### Naming Conventions
 
-- **Services**: `WidgetsService`, `DevicesService`, `RenderingService`
-- **Controllers**: `WidgetsController`, `DevicesController`
-- **DTOs**: `CreateWidgetDto`, `UpdateDeviceDto`
-- **Methods**: `createWidget()`, `getUserDevices()`, `renderAndCache()`
+| Type      | Convention      | Example                         |
+| --------- | --------------- | ------------------------------- |
+| Files     | kebab-case      | `users.service.ts`              |
+| Classes   | PascalCase      | `UsersService`, `CreateUserDTO` |
+| Methods   | camelCase       | `createUser()`, `findById()`    |
+| Variables | camelCase       | `createUserDto`, `userId`       |
+| Constants | SCREAMING_SNAKE | `MAX_RETRY_COUNT`               |
 
-### Typing
+---
 
-- Always use **strict typing** (no `any` types unless unavoidable)
-- Define interfaces for complex objects
-- Use enums for status values
+## NestJS Patterns
+
+### Module Structure
 
 ```typescript
-// Good
-enum WidgetStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-  ARCHIVED = 'archived'
+@Controller('resource') // HTTP routes
+export class XxxController {
+  constructor(private readonly xxxService: XxxService) {}
 }
 
-async findPublished(): Promise<Widget[]> {
-  return this.prisma.widget.findMany({
-    where: { status: WidgetStatus.PUBLISHED }
-  });
+@Injectable()
+export class XxxService {
+  constructor(private readonly prismaService: PrismaService) {}
 }
 
-// Bad
-async findPublished(): Promise<any[]> {
-  return this.prisma.widget.findMany({
-    where: { status: 'published' }  // string, no enum
-  });
+@Module({}) // Combine controller + service
+export class XxxModule {}
+```
+
+### DTOs
+
+- Plain classes (not interfaces)
+- No validation decorators in current codebase (add as needed)
+
+### Prisma Patterns
+
+- Inject `PrismaService` into services (not PrismaClient directly)
+- Access models via `this.prismaService.modelName`
+- Use `include` for relations, avoid N+1
+
+```typescript
+// Prisma schema conventions
+model User {
+  id    Int @id @default(autoincrement())
+  name  String
+  email String @unique
 }
 ```
 
 ### Error Handling
 
-- Use NestJS HttpException for HTTP errors
-- Create custom exception classes for domain errors
-- Always log errors with context
-
-```typescript
-import { BadRequestException } from '@nestjs/common';
-
-async validateLiquidTemplate(template: string) {
-  try {
-    const engine = new Liquid();
-    engine.parse(template);
-  } catch (error) {
-    throw new BadRequestException(`Invalid Liquid template: ${error.message}`);
-  }
-}
-```
+- Use NestJS `HttpException` classes
+- No raw `console.log` in production (use Logger)
+- Always catch async errors
 
 ---
 
-## 🧪 Testing Guidelines
+## Testing Patterns
 
-### Test Structure
-
-- **Unit tests**: Service logic in isolation (mock Prisma)
-- **Integration tests**: Service + real Prisma (test database)
-- **E2E tests**: Full HTTP flow
-
-### Example: Testing a Service
+### Unit Test Structure
 
 ```typescript
-describe('WidgetsService', () => {
-  let service: WidgetsService;
-  let prisma: PrismaService;
+describe('UsersService', () => {
+  let service: UsersService;
+  let mockPrismaService: jest.Mocked<PrismaService>;
 
   beforeEach(async () => {
+    mockPrismaService = {
+      user: { create: jest.fn() },
+    } as unknown as jest.Mocked<PrismaService>;
+
     const module = await Test.createTestingModule({
-      providers: [
-        WidgetsService,
-        {
-          provide: PrismaService,
-          useValue: { widget: { findMany: jest.fn() } }  // Mock
-        }
-      ]
+      providers: [UsersService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
-    service = module.get(WidgetsService);
-    prisma = module.get(PrismaService);
+    service = module.get(UsersService);
   });
 
-  it('should create a widget', async () => {
-    const dto = { name: 'Calendar', slug: 'calendar', ... };
-    await service.create(dto);
+  it('should create a user', async () => {
+    const dto: CreateUserDTO = { name: 'John', email: 'john@example.com' };
+    mockPrismaService.user.create.mockResolvedValue({ id: 1, ...dto });
 
-    expect(prisma.widget.create).toHaveBeenCalledWith({
-      data: expect.objectContaining(dto)
-    });
+    const result = await service.createUser(dto);
+
+    expect(mockPrismaService.user.create).toHaveBeenCalledWith({ data: dto });
+    expect(result.email).toBe('john@example.com');
   });
 });
 ```
 
-### Running Tests
+---
 
-```bash
-pnpm run test              # All tests once
-pnpm run test:watch       # Watch mode
-pnpm run test:cov         # Coverage report
-pnpm run test:e2e         # End-to-end tests
-```
+## Common Pitfalls
+
+1. **TypeORM** - Use Prisma schema, not decorators
+2. **N+1 queries** - Use `include` for relations
+3. **Missing validation** - Add DTOs with class-validators
+4. **Hardcoded secrets** - Use `.env` + ConfigService
+5. **Large payloads** - Optimize images for IoT devices (use Sharp)
+6. **No error handling** - Wrap async operations in try-catch
 
 ---
 
-## 🚨 Common Pitfalls (Agents: Avoid These)
+## Git Workflow
 
-1. **Using TypeORM instead of Prisma**
-   - ❌ `@Entity()`, `@Column()` decorators
-   - ✅ Use `prisma/schema.prisma` instead
-
-2. **N+1 Queries**
-   - ❌ Loop + query inside loop
-   - ✅ Use `include` or `select` to fetch relations once
-
-3. **Missing validation**
-   - ❌ Accept user input without DTOs
-   - ✅ Always use class-validators in DTOs
-
-4. **Hardcoding secrets**
-   - ❌ Hardcode API keys in code
-   - ✅ Use `.env` and `ConfigService`
-
-5. **Forgetting error handling**
-   - ❌ Async operations without try-catch
-   - ✅ Always catch errors and throw appropriate exceptions
-
-6. **Not considering device constraints**
-   - ❌ Send 5MB image to TRMNL
-   - ✅ Optimize images, use compression, small payloads
-
----
-
-## 📦 Dependency Management
-
-### Adding Dependencies
-
-- **For runtime**: `pnpm install <package>`
-- **For development**: `pnpm install -D <package>`
-- **Update lock file**: Commit `pnpm-lock.yaml`
-
-### Current Dependencies (Reference)
-
-- `@nestjs/*` – NestJS framework
-- `@prisma/client` – Database client
-- `liquidjs` – Liquid templating
-- `puppeteer` – Browser rendering
-- `sharp` – Image optimization
-- `reflect-metadata` – TypeScript metadata
-- `class-validator` – DTO validation
-- `class-transformer` – DTO transformation
-
-### Avoid Adding
-
-- ❌ Deprecated packages (check npm for `deprecated` flag)
-- ❌ Unmaintained libraries (last update >2 years ago)
-- ❌ Packages with many security vulnerabilities
-- ✅ Check `pnpm audit` before committing
-
----
-
-## 🔄 Git & Workflow
-
-### Commit Message Format
+### Commit Messages (Conventional Commits)
 
 ```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-**Example**:
-
-```
-feat(rendering): implement hash-based image caching
-
-- Add SHA256 hashing of widget data
-- Skip re-rendering if data unchanged
-- Reduces device poll bandwidth by 60%
-
-Fixes #123
+feat(users): add user registration endpoint
+fix(rendering): resolve timeout on large images
+chore(deps): update prisma to v7.3
 ```
 
 ### Branch Naming
 
-- `feature/widget-marketplace` – New feature
-- `fix/polling-timeout` – Bug fix
-- `docs/api-reference` – Documentation
-- `chore/update-deps` – Maintenance
+- `feature/widget-marketplace`
+- `fix/polling-timeout`
+- `chore/update-deps`
 
 ---
 
-## 🚀 Deployment Notes for Agents
+## Tech Stack (Reference)
 
-### Environment Variables (Production)
-
-```env
-DATABASE_URL=postgresql://user:pass@prod-db.host/zenso_prod
-NODE_ENV=production
-PORT=3000
-PUPPETEER_HEADLESS=true
-
-# Optional
-LOG_LEVEL=info
-REDIS_URL=redis://...
-SENTRY_DSN=https://...
 ```
-
-### Build & Run
-
-```bash
-pnpm run build            # Compile TypeScript
-pnpm run start:prod       # Run compiled code
-
-# In Docker
-docker build -t zenso-api .
-docker run -p 3000:3000 --env-file .env zenso-api
+NestJS 11 | Prisma 7 | PostgreSQL 16 | LiquidJS 10
+Puppeteer 24 | Sharp 0.34 | Jest 30 | TypeScript 5.7
 ```
-
-### Monitoring
-
-- **Logs**: Check `console.log()` output (or ELK stack)
-- **Database**: Monitor PostgreSQL connections
-- **Performance**: Track rendering time (Puppeteer overhead)
-- **Health**: `GET /health` endpoint (add if missing)
-
----
-
-## 🔧 Helpful Commands for Agents
-
-### Database
-
-```bash
-npx prisma migrate dev --name migration_name   # Create migration
-npx prisma migrate deploy                      # Deploy migrations
-npx prisma generate                            # Regenerate client
-npx prisma studio                              # UI to inspect data
-npx prisma db push                             # Sync schema to DB
-```
-
-### Development
-
-```bash
-pnpm run start:dev        # Watch mode
-pnpm run lint             # ESLint check
-pnpm run format           # Format code
-pnpm run build            # Production build
-```
-
-### Testing
-
-```bash
-pnpm run test             # Run all tests
-pnpm run test:watch       # Watch mode
-pnpm run test:cov         # Coverage
-pnpm run test:debug       # Debug mode
-```
-
----
-
-## 📞 Questions for Agents
-
-When working on new features, ask yourself:
-
-1. **Does this affect device polling?** → Consider bandwidth impact
-2. **Do I need a database change?** → Create Prisma migration
-3. **Should this be cached?** → Use hash-based caching
-4. **Is input validated?** → Use DTOs with class-validators
-5. **Is this tested?** → Add unit + E2E tests
-6. **Is error handling present?** → Throw appropriate exceptions
-7. **Does this follow NestJS patterns?** → Use services/controllers/guards
-8. **Are relations efficient?** → Avoid N+1 queries
-
----
-
-## 🎯 Agent Workflow Template
-
-When asked to implement a feature:
-
-1. **Understand requirements** – Read issue/task carefully
-2. **Plan database changes** – Update `prisma/schema.prisma` if needed
-3. **Create migration** – `npx prisma migrate dev --name feature_name`
-4. **Implement service** – Add business logic to appropriate service
-5. **Expose via controller** – Add HTTP endpoints
-6. **Write tests** – Add unit + E2E tests
-7. **Update documentation** – If API changes, update this doc
-8. **Code review** – Ensure code follows style guide
-9. **Test manually** – `pnpm run start:dev` and test endpoints
-10. **Commit & push** – Follow git workflow above
-
----
-
-**Last Updated**: January 2026
-**Version**: 1.0
-**Audience**: AI Agents, Claude, LLMs working on zenso-api codebase
