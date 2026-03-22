@@ -1,8 +1,16 @@
-FROM node:24-alpine3.22
+FROM node:24-bookworm-slim
 
 WORKDIR /usr/src/app
 
-RUN apk add --no-cache netcat-openbsd xdg-utils
+RUN apt-get update && apt-get install -y \
+    netcat-openbsd \
+    chromium \
+    imagemagick \
+    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml || true
 
 COPY package*.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
@@ -11,6 +19,9 @@ COPY prisma ./prisma
 RUN npm install -g pnpm @nestjs/cli
 
 RUN pnpm install --frozen-lockfile
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 COPY . .
 
