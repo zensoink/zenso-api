@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:17.6-alpine
-    container_name: mydb-postgres
+    container_name: postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
@@ -24,11 +24,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mydb-backend
+    container_name: backend
     restart: unless-stopped
     ports:
       - "3000:3000"
-      - "5555:5555"  # Prisma Studio (opcjonalnie)
+      - "5555:5555"  # Prisma Studio
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -42,7 +42,6 @@ services:
     networks:
       - app-network
 
-# USUŃ prisma-studio service!
 
 volumes:
   postgres_data:
