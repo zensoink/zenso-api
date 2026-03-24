@@ -27,5 +27,5 @@
       "@core/*": ["src/core/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*"]
 }
