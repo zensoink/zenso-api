@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Liquid } from 'liquidjs';
 import puppeteer, { Browser } from 'puppeteer';
 
@@ -20,10 +20,16 @@ export class WidgetsService implements OnModuleInit, OnModuleDestroy {
   private browser: Browser;
 
   async onModuleInit() {
-    this.browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    });
+    try {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      });
+      this.logger.log('Puppeteer browser launched successfully');
+    } catch (error) {
+      this.logger.error('Failed to launch Puppeteer browser', error);
+      throw error;
+    }
   }
 
   async onModuleDestroy() {
@@ -43,22 +49,41 @@ export class WidgetsService implements OnModuleInit, OnModuleDestroy {
     data: Record<any, any>;
     palette: string[];
   }): Promise<Buffer> {
+    if (!template || typeof template !== 'string') {
+      throw new BadRequestException('Template is required and must be a string');
+    }
+    if (!width || width < 1 || width > 4096) {
+      throw new BadRequestException('Width must be between 1 and 4096');
+    }
+    if (!height || height < 1 || height > 4096) {
+      throw new BadRequestException('Height must be between 1 and 4096');
+    }
+    if (!palette || !Array.isArray(palette) || palette.length < 2) {
+      throw new BadRequestException('Palette must have at least 2 colors');
+    }
+
     const content = (await this.engine.parseAndRender(template, data)) as string;
     const html = getWidgetTemplate(content, { width, height });
     const page = await this.browser.newPage();
 
     try {
       await page.setViewport({ width, height });
-      await page.setContent(html, { waitUntil: 'networkidle2' });
+      await Promise.race([
+        page.setContent(html, { waitUntil: 'networkidle2' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Page load timeout')), 10000)),
+      ]);
 
-      const screenshot = await page.screenshot({
-        type: 'png',
-        clip: { x: 0, y: 0, width, height },
-      });
+      const screenshot = await Promise.race([
+        page.screenshot({
+          type: 'png',
+          clip: { x: 0, y: 0, width, height },
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Screenshot timeout')), 10000)),
+      ]);
 
       return await this.applyDynamicEinkEffect(screenshot as Buffer, width, height, palette);
     } finally {
-      await page.close();
+      await page.close().catch(() => {});
     }
   }
 

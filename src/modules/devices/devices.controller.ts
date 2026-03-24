@@ -1,6 +1,6 @@
 import { PrismaService } from '@core/prisma';
 import { WidgetsService } from '@modules/widgets/widgets.service';
-import { Controller, Get, Header, NotFoundException, Param, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Query, StreamableFile } from '@nestjs/common';
 
 @Controller('v1/devices')
 export class DevicesController {
@@ -10,19 +10,38 @@ export class DevicesController {
   ) {}
 
   @Get(':uid/display')
-  @Header('Content-Type', 'image/png')
+  @Header('Content-Type', 'image/bmp')
   @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
-  async getDisplay(@Param('uid') uid: string): Promise<StreamableFile> {
-    const device = await this.prisma.device.findUnique({
-      where: { uid },
-      include: { slots: { include: { widget: true } } },
-    });
+  async getDisplay(@Param('uid') uid: string, @Query('slot') slotParam?: string): Promise<StreamableFile> {
+    const slotIndex = slotParam ? parseInt(slotParam, 10) : 0;
 
-    if (!device?.slots.length) {
-      throw new NotFoundException('Device or widget not found');
+    if (isNaN(slotIndex) || slotIndex < 0) {
+      throw new NotFoundException('Invalid slot index');
     }
 
-    const slot = device.slots[0];
+    const device = await this.prisma.device.findUnique({
+      where: { uid },
+      include: {
+        slots: {
+          include: { widget: true },
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    if (!device.slots.length) {
+      throw new NotFoundException('No widgets configured for device');
+    }
+
+    const slot = device.slots[slotIndex];
+    if (!slot) {
+      throw new NotFoundException(`Slot ${slotIndex} not found`);
+    }
+
     const buffer = await this.widgetsService.renderWidget({
       template: slot.widget.template,
       width: device.width,
@@ -30,7 +49,7 @@ export class DevicesController {
       data: {
         deviceName: device.name,
       },
-      palette: ['#000000', '#ffffff', '#00ff00', '#0000ff', '#ff0000', '#ffff00', '#ff8000'],
+      palette: device.palette,
     });
 
     return new StreamableFile(buffer);

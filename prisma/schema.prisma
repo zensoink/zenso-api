@@ -40,6 +40,7 @@ model Device {
   name      String
   width     Int      @default(800)
   height    Int      @default(480)
+  palette   String[] @default(["#000000", "#ffffff", "#00ff00", "#0000ff", "#ff0000", "#ffff00", "#ff8000"])
 
   slots     DeviceWidget[]
 
@@ -57,6 +58,7 @@ model DeviceWidget {
   id        Int      @id @default(autoincrement())
   deviceId  Int
   widgetId  Int
+  position  Int      @default(0)  // slot position/order
   // Display data
   x         Int      @default(0)   //  position
   y         Int      @default(0)   // position
