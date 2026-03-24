@@ -24,7 +24,8 @@ jobs:
           cache: pnpm
       - id: cache-key
         run: |
-          CACHE_KEY="${{ runner.os }}-node-${{ env.NODE_VERSION }}-pnpm-cache-$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)"
+          SCHEMA_HASH=$(sha256sum prisma/schema.prisma | cut -d' ' -f1)
+          CACHE_KEY="${{ runner.os }}-node-${{ env.NODE_VERSION }}-pnpm-cache-$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)-schema-$SCHEMA_HASH"
           echo "cache-key=$CACHE_KEY" >> $GITHUB_OUTPUT
       - uses: actions/cache@v4
         id: pnpm-cache
@@ -55,7 +56,6 @@ jobs:
             node_modules
             ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache-key }}
-      - run: pnpm run db:generate
       - run: pnpm run lint
       - uses: actions/upload-artifact@v4
         if: always()
