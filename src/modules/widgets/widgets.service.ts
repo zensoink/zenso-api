@@ -24,14 +24,7 @@ export class WidgetsService {
           <meta charset="UTF-8" />
           <script src="https://cdn.tailwindcss.com"></script>
           <style>
-            html, body { 
-              margin: 0; 
-              padding: 0; 
-              width: ${width}px; 
-              height: ${height}px; 
-              overflow: hidden; 
-              background: #ffffff;
-            }
+            html, body { margin: 0; padding: 0; width: ${width}px; height: ${height}px; overflow: hidden; background: #ffffff; }
           </style>
         </head>
         <body>${content}</body>
@@ -48,7 +41,6 @@ export class WidgetsService {
       await page.setViewport({ width, height });
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
-      // POPRAWKA: Przechwyć dokładnie zadeklarowany obszar, eliminując białe paski
       const screenshot = await page.screenshot({
         type: 'png',
         clip: { x: 0, y: 0, width, height },
@@ -64,7 +56,7 @@ export class WidgetsService {
     const timestamp = Date.now();
     const tempIn = path.join(os.tmpdir(), `in_${timestamp}.png`);
     const tempPalette = path.join(os.tmpdir(), `pal_${timestamp}.png`);
-    const tempOut = path.join(os.tmpdir(), `out_${timestamp}.png`);
+    const tempOut = path.join(os.tmpdir(), `out_${timestamp}.bmp`);
 
     try {
       await fs.writeFile(tempIn, inputBuffer);
@@ -73,18 +65,20 @@ export class WidgetsService {
       await execPromise(`convert -size 7x1 xc:none ${colorPoints} "${tempPalette}"`);
 
       const command = `convert "${tempIn}" \
-        -brightness-contrast 0x30 \
-        -modulate 100,200 \
-        -sharpen 0x1.5 \
-        -dither FloydSteinberg \
-        -remap "${tempPalette}" \
-        "${tempOut}"`;
+      -resize 800x480^ -gravity center -extent 800x480 \
+      -brightness-contrast 10x30 \
+      -remap "${tempPalette}" \
+      -compress none \
+      -type Palette \
+      -depth 4 \
+      -define bmp:format=bmp3 \
+      -colors 16 \
+      BMP3:"${tempOut}"`;
 
       await execPromise(command);
       return await fs.readFile(tempOut);
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      console.error('ImageMagick err:', error.stderr || error.message);
+      console.error('ImageMagick err:', error);
       throw error;
     } finally {
       await Promise.all([
