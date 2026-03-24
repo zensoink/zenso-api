@@ -23,8 +23,14 @@ export class DevicesController {
     }
 
     const slot = device.slots[0];
-    const buffer = await this.widgetsService.renderWidget(slot.widget.template, device.width, device.height, {
-      deviceName: device.name,
+    const buffer = await this.widgetsService.renderWidget({
+      template: slot.widget.template,
+      width: device.width,
+      height: device.height,
+      data: {
+        deviceName: device.name,
+      },
+      palette: ['#000000', '#ffffff', '#00ff00', '#0000ff', '#ff0000', '#ffff00', '#ff8000'],
     });
 
     return new StreamableFile(buffer);

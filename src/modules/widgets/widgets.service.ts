@@ -1,91 +1,127 @@
-import { Injectable } from '@nestjs/common';
-import { exec } from 'child_process';
-import * as fs from 'fs/promises';
+import { exec, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
+
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Liquid } from 'liquidjs';
-import * as os from 'os';
-import * as path from 'path';
-import puppeteer from 'puppeteer';
-import { promisify } from 'util';
+import puppeteer, { Browser } from 'puppeteer';
+
+import { getWidgetTemplate } from './widgets.utils';
 
 const execPromise = promisify(exec);
 
 @Injectable()
-export class WidgetsService {
+export class WidgetsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(WidgetsService.name);
   private readonly engine = new Liquid();
-  private readonly EINK_PALETTE = ['#000000', '#ffffff', '#00ff00', '#0000ff', '#ff0000', '#ffff00', '#ff8000'];
+  private browser: Browser;
 
-  async renderWidget(template: string, width: number, height: number, data: any): Promise<Buffer> {
-    const content = (await this.engine.parseAndRender(template, data)) as string;
-
-    const html = `
-      <!DOCTYPE html>
-      <html lang="pl">
-        <head>
-          <meta charset="UTF-8" />
-          <script src="https://cdn.tailwindcss.com"></script>
-          <style>
-            html, body { margin: 0; padding: 0; width: ${width}px; height: ${height}px; overflow: hidden; background: #ffffff; }
-          </style>
-        </head>
-        <body>${content}</body>
-      </html>
-    `;
-
-    const browser = await puppeteer.launch({
+  async onModuleInit() {
+    this.browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
+  }
+
+  async onModuleDestroy() {
+    if (this.browser) await this.browser.close();
+  }
+
+  async renderWidget({
+    template,
+    width,
+    height,
+    data,
+    palette,
+  }: {
+    template: string;
+    width: number;
+    height: number;
+    data: Record<any, any>;
+    palette: string[];
+  }): Promise<Buffer> {
+    const content = (await this.engine.parseAndRender(template, data)) as string;
+    const html = getWidgetTemplate(content, { width, height });
+    const page = await this.browser.newPage();
 
     try {
-      const page = await browser.newPage();
       await page.setViewport({ width, height });
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'networkidle2' });
 
       const screenshot = await page.screenshot({
         type: 'png',
         clip: { x: 0, y: 0, width, height },
       });
 
-      return await this.applyEinkEffect(Buffer.from(screenshot));
+      return await this.applyDynamicEinkEffect(screenshot as Buffer, width, height, palette);
     } finally {
-      await browser.close();
+      await page.close();
     }
   }
 
-  private async applyEinkEffect(inputBuffer: Buffer): Promise<Buffer> {
-    const timestamp = Date.now();
-    const tempIn = path.join(os.tmpdir(), `in_${timestamp}.png`);
-    const tempPalette = path.join(os.tmpdir(), `pal_${timestamp}.png`);
-    const tempOut = path.join(os.tmpdir(), `out_${timestamp}.bmp`);
+  private async applyDynamicEinkEffect(
+    inputBuffer: Buffer,
+    width: number,
+    height: number,
+    palette: string[]
+  ): Promise<Buffer> {
+    const tempPalette = path.join(os.tmpdir(), `palette-${randomUUID()}.png`);
 
     try {
-      await fs.writeFile(tempIn, inputBuffer);
+      const colorPoints = palette.map((color, i) => `-fill "${color}" -draw "point ${i},0"`).join(' ');
+      await execPromise(`convert -size ${palette.length}x1 xc:none ${colorPoints} "${tempPalette}"`);
 
-      const colorPoints = this.EINK_PALETTE.map((color, i) => `-fill "${color}" -draw "point ${i},0"`).join(' ');
-      await execPromise(`convert -size 7x1 xc:none ${colorPoints} "${tempPalette}"`);
+      return await new Promise((resolve, reject) => {
+        const args = [
+          'png:-', // 1. Input: Read from stdin
 
-      const command = `convert "${tempIn}" \
-      -resize 800x480^ -gravity center -extent 800x480 \
-      -brightness-contrast 10x30 \
-      -remap "${tempPalette}" \
-      -compress none \
-      -type Palette \
-      -depth 4 \
-      -define bmp:format=bmp3 \
-      -colors 16 \
-      BMP3:"${tempOut}"`;
+          // 2. Geometry and Cropping
+          ['-resize', `${width}x${height}^`],
+          ['-gravity', 'center'],
+          ['-extent', `${width}x${height}`],
 
-      await execPromise(command);
-      return await fs.readFile(tempOut);
-    } catch (error) {
-      console.error('ImageMagick err:', error);
-      throw error;
+          // 3. Image Correction
+          ['-brightness-contrast', '10x30'],
+
+          // 4. E-ink Color Processing
+          ['-dither', 'FloydSteinberg'],
+          ['-remap', tempPalette],
+          ['-type', 'Palette'],
+          ['-depth', '4'],
+
+          // 5. Output Format
+          ['-define', 'bmp:format=bmp3'],
+          'BMP3:-', // Output: Write to stdout
+        ].flat();
+
+        const magick = spawn('convert', args);
+        const chunks: Buffer[] = [];
+        const errorChunks: Buffer[] = [];
+
+        magick.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+        magick.stderr.on('data', (chunk: Buffer) => errorChunks.push(chunk));
+
+        magick.on('close', code => {
+          if (code === 0) {
+            resolve(Buffer.concat(chunks));
+          } else {
+            const errorMsg = Buffer.concat(errorChunks).toString();
+            this.logger.error(`ImageMagick conversion failed: ${errorMsg}`);
+            reject(new Error(`ImageMagick Error: ${errorMsg}`));
+          }
+        });
+
+        magick.stdin.write(inputBuffer);
+        magick.stdin.end();
+      });
+    } catch (err) {
+      this.logger.error('E-ink effect error:', err);
+      throw err;
     } finally {
-      await Promise.all([
-        fs.unlink(tempIn).catch(() => {}),
-        fs.unlink(tempPalette).catch(() => {}),
-        fs.unlink(tempOut).catch(() => {}),
-      ]);
+      await fs.unlink(tempPalette).catch(() => {});
     }
   }
 }
