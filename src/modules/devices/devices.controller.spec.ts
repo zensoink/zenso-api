@@ -102,6 +102,7 @@ describe('DevicesController', () => {
         height: 480,
         data: { deviceName: 'Test Device' },
         palette: ['#000000', '#ffffff', '#ff0000'],
+        outputFormat: 'raw',
       });
       expect(result).toBeInstanceOf(StreamableFile);
     });
@@ -117,6 +118,7 @@ describe('DevicesController', () => {
         height: 480,
         data: { deviceName: 'Test Device' },
         palette: ['#000000', '#ffffff', '#ff0000'],
+        outputFormat: 'raw',
       });
     });
 

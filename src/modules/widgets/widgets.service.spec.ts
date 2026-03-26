@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { RenderEngineService } from './services/render-engine.service';
 import { WidgetsService } from './widgets.service';
 
 jest.mock('puppeteer', () => ({
@@ -23,10 +24,17 @@ jest.mock('puppeteer', () => ({
 
 describe('WidgetsService', () => {
   let service: WidgetsService;
+  let mockRenderEngineService: {
+    renderWidget: jest.Mock;
+  };
 
   beforeEach(async () => {
+    mockRenderEngineService = {
+      renderWidget: jest.fn().mockResolvedValue(Buffer.from('mock-image')),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WidgetsService],
+      providers: [WidgetsService, { provide: RenderEngineService, useValue: mockRenderEngineService }],
     }).compile();
 
     service = module.get<WidgetsService>(WidgetsService);
