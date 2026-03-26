@@ -1,6 +1,15 @@
 import { PrismaService } from '@core/prisma';
 import { WidgetsService } from '@modules/widgets/widgets.service';
-import { Controller, Get, Header, NotFoundException, Param, Query, StreamableFile } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Header,
+  NotFoundException,
+  Param,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 
 @Controller('v1/devices')
 export class DevicesController {
@@ -10,13 +19,21 @@ export class DevicesController {
   ) {}
 
   @Get(':uid/display')
-  @Header('Content-Type', 'image/bmp')
   @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
-  async getDisplay(@Param('uid') uid: string, @Query('slot') slotParam?: string): Promise<StreamableFile> {
+  async getDisplay(
+    @Param('uid') uid: string,
+    @Query('slot') slotParam?: string,
+    @Query('format') formatParam?: string
+  ): Promise<StreamableFile> {
     const slotIndex = slotParam ? parseInt(slotParam, 10) : 0;
+    const format: 'png' | 'raw' = formatParam === 'png' ? 'png' : 'raw';
 
     if (isNaN(slotIndex) || slotIndex < 0) {
       throw new NotFoundException('Invalid slot index');
+    }
+
+    if (formatParam && formatParam !== 'raw' && formatParam !== 'png') {
+      throw new BadRequestException('Invalid format. Allowed values: raw, png');
     }
 
     const device = await this.prisma.device.findUnique({
@@ -50,8 +67,14 @@ export class DevicesController {
         deviceName: device.name,
       },
       palette: device.palette,
+      outputFormat: format,
     });
 
-    return new StreamableFile(buffer);
+    return new StreamableFile(buffer, {
+      // 'image/raw' nie jest standardem. Użyj octet-stream dla surowych danych.
+      type: format === 'png' ? 'image/png' : 'application/octet-stream',
+      // Opcjonalnie możesz dodać nazwę pliku, co ułatwia debugowanie w przeglądarce
+      disposition: `attachment; filename="display.${format}"`,
+    });
   }
 }
