@@ -104,7 +104,13 @@
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1",
       "^@modules/(.*)$": "<rootDir>/modules/$1",
-      "^@core/(.*)$": "<rootDir>/core/$1"
-    }
+      "^@core/(.*)$": "<rootDir>/core/$1",
+      "^canvas$": "<rootDir>/__mocks__/canvas.ts",
+      "^sharp$": "<rootDir>/__mocks__/sharp.ts",
+      "^epdoptimize$": "<rootDir>/__mocks__/epdoptimize.ts"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/../test/setup-jest.ts"
+    ]
   }
 }
