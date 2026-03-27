@@ -13,7 +13,57 @@ datasource db {
 }
 
 model User {
-  id    Int @id @default(autoincrement())
-  name  String
-  email String
+  id        Int      @id @default(autoincrement())
+  name      String?
+  email     String   @unique
+  devices   Device[]
+  widgets   Widget[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Widget {
+  id        Int            @id @default(autoincrement())
+  name      String
+  template  String         //  LiquidJS HTML
+  userId    Int
+  user      User           @relation(fields: [userId], references: [id])
+  displaySlots DeviceWidget[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+
+model Device {
+  id        Int      @id @default(autoincrement()) // internal ID
+  uid       String   @unique @default(uuid())      // public key
+  name      String
+  width     Int      @default(800)
+  height    Int      @default(480)
+  palette   String[] @default(["#000000", "#ffffff", "#00ff00", "#0000ff", "#ff0000", "#ffff00", "#ff8000"])
+
+  slots     DeviceWidget[]
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([uid])
+}
+
+
+model DeviceWidget {
+  id        Int      @id @default(autoincrement())
+  deviceId  Int
+  widgetId  Int
+  position  Int      @default(0)  // slot position/order
+  // Display data
+  x         Int      @default(0)   //  position
+  y         Int      @default(0)   // position
+  w         Int      @default(12)
+  h         Int      @default(12)
+  device    Device   @relation(fields: [deviceId], references: [id])
+  widget    Widget   @relation(fields: [widgetId], references: [id])
 }
