@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:24-bookworm-slim AS base
 
 WORKDIR /usr/src/app
 
@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
     chromium \
     ca-certificates \
@@ -44,17 +44,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss1 \
     libxtst6 \
     fonts-freefont-ttf \
-    && rm -rf /var/lib/apt/lists/* \
-    && corepack enable
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS deps
 
 COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
 
-RUN pnpm install --frozen-lockfile && pnpm rebuild canvas && pnpm exec prisma generate
+RUN pnpm install --frozen-lockfile \
+    && pnpm rebuild canvas \
+    && pnpm exec prisma generate
+
+FROM deps AS builder
 
 COPY . .
+RUN pnpm run build
+RUN pnpm prune --prod
 
-COPY docker-entrypoint.sh /usr/local/bin
+FROM deps AS development
+
+COPY . .
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
@@ -63,3 +73,21 @@ EXPOSE 3000
 EXPOSE 5555
 
 CMD ["pnpm", "run", "start:dev"]
+
+FROM base AS production
+
+ENV NODE_ENV=production
+
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/package.json ./package.json
+COPY --from=builder /usr/src/app/prisma ./prisma
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+EXPOSE 3000
+
+CMD ["pnpm", "run", "start:prod"]
