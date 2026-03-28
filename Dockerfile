@@ -48,6 +48,8 @@ RUN corepack enable && apt-get update && apt-get install -y --no-install-recomme
 
 FROM base AS deps
 
+ENV NODE_ENV=production
+
 COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
 
