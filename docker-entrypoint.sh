@@ -9,6 +9,6 @@ done
 
 echo "Database started"
 
-npx prisma migrate deploy
+pnpm exec prisma migrate deploy
 
 exec "$@"

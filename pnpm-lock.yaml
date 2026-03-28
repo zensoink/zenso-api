@@ -38,6 +38,9 @@ importers:
       liquidjs:
         specifier: ^10.25.0
         version: 10.25.0
+      prisma:
+        specifier: ^7.5.0
+        version: 7.5.0(@types/react@19.2.9)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
       puppeteer:
         specifier: ^24.34.0
         version: 24.36.0(typescript@5.9.3)
@@ -120,9 +123,6 @@ importers:
       prettier:
         specifier: ^3.4.2
         version: 3.8.1
-      prisma:
-        specifier: ^7.5.0
-        version: 7.5.0(@types/react@19.2.9)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
