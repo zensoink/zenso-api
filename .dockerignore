@@ -52,3 +52,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 test
 Dockerfile
 README.md
+
+.gitignore
+docker-compose*.yml
+npm-debug.log
+pnpm-debug.log
+.env.*
