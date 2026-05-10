@@ -34,21 +34,21 @@ model Widget {
 }
 
 model Plugin {
-  id            Int              @id @default(autoincrement())
-  manifestId    String           @unique       // e.g. "zenso/zenso-plugin-example"
-  slug          String           @unique       // e.g. "zenso__zenso-plugin-example"
+  id            Int                  @id @default(autoincrement())
+  manifestId    String               @unique
+  slug          String               @unique
   name          String
   description   String?
   authorName    String?
   authorUrl     String?
   thumbnail     String?
-  schemaVersion Int              @default(1)
+  schemaVersion Int                  @default(1)
   coreMin       String?
   license       String?
   configSchema  Json?
-  sourceType    String           @default("zip") // zip, github_repo, github_release, github_archive
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  sourceType    String               @default("zip")
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   versions      PluginVersion[]
   configs       PluginConfig[]
@@ -56,18 +56,18 @@ model Plugin {
 }
 
 model PluginVersion {
-  id              Int              @id @default(autoincrement())
+  id              Int                  @id @default(autoincrement())
   pluginId        Int
-  plugin          Plugin           @relation(fields: [pluginId], references: [id])
+  plugin          Plugin               @relation(fields: [pluginId], references: [id])
   version         String
   manifestJson    Json
   sourceUrl       String?
   sourceRef       String?
   checksumSha256  String?
-  signatureStatus String           @default("unverified") // none, valid, invalid, unverified
+  signatureStatus String               @default("none")
   installPath     String
-  status          String           @default("installed")  // installed, active, disabled, broken, removed
-  installedAt     DateTime         @default(now())
+  status          String               @default("installed")
+  installedAt     DateTime             @default(now())
 
   events          PluginInstallEvent[]
 
@@ -78,10 +78,11 @@ model PluginConfig {
   id               Int      @id @default(autoincrement())
   pluginId         Int
   plugin           Plugin   @relation(fields: [pluginId], references: [id])
-  scopeType        String   @default("global") // global, workspace, device
-  scopeId          String?  // nullable for global scope
+  scopeType        String   @default("global")
+  scopeId          String?
   configJson       Json
   secretsEncrypted String?
+  createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
 
@@ -91,11 +92,10 @@ model PluginInstallEvent {
   plugin          Plugin         @relation(fields: [pluginId], references: [id])
   pluginVersionId Int?
   pluginVersion   PluginVersion? @relation(fields: [pluginVersionId], references: [id])
-  eventType       String         // imported, installed, activated, disabled, broken, removed, rolled_back, updated
+  eventType       String
   message         String?
   createdAt       DateTime       @default(now())
 }
-
 
 model Device {
   id        Int      @id @default(autoincrement()) // internal ID

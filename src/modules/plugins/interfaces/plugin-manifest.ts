@@ -6,6 +6,7 @@ export interface PluginManifestAuthor {
 export interface PluginManifest {
   $schema?: string;
   id: string;
+  version: string;
   name: string;
   thumbnail?: string;
   description?: string;
