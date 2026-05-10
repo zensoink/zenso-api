@@ -1,0 +1,75 @@
+import { PrismaService } from '@core/prisma';
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+
+import { PluginStorageService } from './plugin-storage.service';
+import { PluginValidatorService } from './plugin-validator.service';
+import { PluginZipService } from './plugin-zip.service';
+@Injectable()
+export class PluginImportService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pluginZipService: PluginZipService,
+    private readonly pluginValidatorService: PluginValidatorService,
+    private readonly pluginStorageService: PluginStorageService
+  ) {}
+
+  async importFromZipUpload(file: Express.Multer.File) {
+    const tempZipPath = await this.pluginZipService.saveUploadToTemp(file);
+    const extractedDir = await this.pluginZipService.extractZipToTemp(tempZipPath);
+
+    const validation = await this.pluginValidatorService.validateExtractedPlugin(extractedDir);
+    const manifest = validation.manifest;
+    const { version } = manifest;
+
+    const pluginSlug = this.pluginValidatorService.toFilesystemSlug(manifest.id);
+
+    await this.pluginStorageService.ensurePluginDirectories(pluginSlug, version);
+
+    const finalPath = this.pluginStorageService.getVersionPath(pluginSlug, version);
+
+    const result = await this.prisma.$transaction(async tx => {
+      const plugin = await tx.plugin.upsert({
+        where: { manifestId: manifest.id },
+        update: {
+          name: manifest.name,
+          authorName: manifest.author?.name ?? null,
+          updatedAt: new Date(),
+        },
+        create: {
+          manifestId: manifest.id,
+          slug: pluginSlug,
+          name: manifest.name,
+          authorName: manifest.author?.name ?? null,
+          sourceType: 'zip',
+        },
+      });
+
+      const pluginVersion = await tx.pluginVersion.create({
+        data: {
+          pluginId: plugin.id,
+          version,
+          manifestJson: manifest as unknown as Prisma.InputJsonValue,
+          sourceUrl: null,
+          sourceRef: file.originalname,
+          checksumSha256: validation.checksumSha256,
+          signatureStatus: 'none',
+          installPath: finalPath,
+          status: 'installed',
+        },
+      });
+
+      return { plugin, pluginVersion };
+    });
+
+    await this.pluginStorageService.moveExtractedPluginToVersionPath(extractedDir, pluginSlug, version);
+
+    return {
+      ok: true,
+      pluginId: result.plugin.manifestId,
+      slug: result.plugin.slug,
+      version: result.pluginVersion.version,
+      status: result.pluginVersion.status,
+    };
+  }
+}

@@ -70,4 +70,24 @@ export class PluginStorageService {
     const raw = await fs.readFile(manifestPath, 'utf-8');
     return JSON.parse(raw) as PluginManifest;
   }
+
+  async moveExtractedPluginToVersionPath(extractedDir: string, slug: string, version: string): Promise<void> {
+    const targetDir = this.getVersionPath(slug, version);
+
+    await fs.mkdir(path.dirname(targetDir), { recursive: true });
+    await fs.rm(targetDir, { recursive: true, force: true });
+
+    try {
+      await fs.rename(extractedDir, targetDir);
+    } catch (error: unknown) {
+      const err = error as NodeJS.ErrnoException;
+
+      if (err.code !== 'EXDEV') {
+        throw error;
+      }
+
+      await fs.cp(extractedDir, targetDir, { recursive: true });
+      await fs.rm(extractedDir, { recursive: true, force: true });
+    }
+  }
 }

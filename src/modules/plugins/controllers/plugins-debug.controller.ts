@@ -1,6 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 
-import { PluginStorageService } from './services/plugin-storage.service';
+import { PluginStorageService } from '../services/plugin-storage.service';
 
 @Controller('plugins-debug')
 export class PluginsDebugController {
