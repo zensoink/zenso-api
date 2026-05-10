@@ -33,6 +33,69 @@ model Widget {
   updatedAt DateTime       @updatedAt
 }
 
+model Plugin {
+  id            Int              @id @default(autoincrement())
+  manifestId    String           @unique       // e.g. "zenso/zenso-plugin-example"
+  slug          String           @unique       // e.g. "zenso__zenso-plugin-example"
+  name          String
+  description   String?
+  authorName    String?
+  authorUrl     String?
+  thumbnail     String?
+  schemaVersion Int              @default(1)
+  coreMin       String?
+  license       String?
+  configSchema  Json?
+  sourceType    String           @default("zip") // zip, github_repo, github_release, github_archive
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  versions      PluginVersion[]
+  configs       PluginConfig[]
+  events        PluginInstallEvent[]
+}
+
+model PluginVersion {
+  id              Int              @id @default(autoincrement())
+  pluginId        Int
+  plugin          Plugin           @relation(fields: [pluginId], references: [id])
+  version         String
+  manifestJson    Json
+  sourceUrl       String?
+  sourceRef       String?
+  checksumSha256  String?
+  signatureStatus String           @default("unverified") // none, valid, invalid, unverified
+  installPath     String
+  status          String           @default("installed")  // installed, active, disabled, broken, removed
+  installedAt     DateTime         @default(now())
+
+  events          PluginInstallEvent[]
+
+  @@unique([pluginId, version])
+}
+
+model PluginConfig {
+  id               Int      @id @default(autoincrement())
+  pluginId         Int
+  plugin           Plugin   @relation(fields: [pluginId], references: [id])
+  scopeType        String   @default("global") // global, workspace, device
+  scopeId          String?  // nullable for global scope
+  configJson       Json
+  secretsEncrypted String?
+  updatedAt        DateTime @updatedAt
+}
+
+model PluginInstallEvent {
+  id              Int            @id @default(autoincrement())
+  pluginId        Int
+  plugin          Plugin         @relation(fields: [pluginId], references: [id])
+  pluginVersionId Int?
+  pluginVersion   PluginVersion? @relation(fields: [pluginVersionId], references: [id])
+  eventType       String         // imported, installed, activated, disabled, broken, removed, rolled_back, updated
+  message         String?
+  createdAt       DateTime       @default(now())
+}
+
 
 model Device {
   id        Int      @id @default(autoincrement()) // internal ID

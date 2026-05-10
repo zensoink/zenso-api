@@ -28,6 +28,7 @@
     "db:reset": "prisma migrate reset",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
+    "docker:backend:refresh": "docker compose build --no-cache backend && docker compose up --force-recreate --no-deps backend",
     "prepare": "if [ \"$NODE_ENV\" != \"production\" ]; then husky; fi"
   },
   "dependencies": {
@@ -36,12 +37,12 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.5.0",
+    "@prisma/client": "^7.8.0",
     "canvas": "^3.2.2",
     "dotenv": "^17.2.3",
     "epdoptimize": "1.0.3",
     "liquidjs": "^10.25.0",
-    "prisma": "^7.5.0",
+    "prisma": "^7.8.0",
     "puppeteer": "^24.34.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
