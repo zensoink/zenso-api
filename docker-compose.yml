@@ -34,10 +34,12 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+      - plugins_data:/app/data/plugins
     environment:
       NODE_ENV: development
       PORT: 3000
       DATABASE_URL: 'postgresql://postgres:postgres@db:5432/mydb?schema=public'
+      PLUGINS_ROOT_DIR: /app/data/plugins
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +48,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  plugins_data:
     driver: local
 
 networks:
