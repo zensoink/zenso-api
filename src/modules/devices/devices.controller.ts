@@ -11,7 +11,7 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 
-@Controller('v1/devices')
+@Controller('devices')
 export class DevicesController {
   constructor(
     private readonly prisma: PrismaService,

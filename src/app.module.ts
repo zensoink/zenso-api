@@ -1,5 +1,6 @@
 import { PrismaModule } from '@core/prisma';
 import { DevicesModule } from '@modules/devices/devices.module';
+import { PluginsModule } from '@modules/plugins';
 import { UsersModule } from '@modules/users';
 import { WidgetsModule } from '@modules/widgets';
 import { Module } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { AppService } from './app.service';
     DevicesModule,
     UsersModule,
     WidgetsModule,
+    PluginsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
