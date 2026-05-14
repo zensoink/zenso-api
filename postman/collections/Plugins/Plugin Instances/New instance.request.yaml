@@ -1,0 +1,14 @@
+$kind: http-request
+name: New instance
+url: "{{URL}}/plugin-instances"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+        "pluginId": 1,
+        "pluginVersionId": 4,
+        "name": "test",
+        "userId": 1
+    }
+order: 1969939995783613

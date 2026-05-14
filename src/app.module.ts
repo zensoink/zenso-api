@@ -2,7 +2,9 @@ import pluginsConfig from '@core/config/plugins.config';
 import registryConfig from '@core/config/registry.config';
 import { PrismaModule } from '@core/prisma';
 import { DevicesModule } from '@modules/devices/devices.module';
+import { PluginInstancesModule } from '@modules/plugin-instances';
 import { PluginsModule } from '@modules/plugins';
+import { ScreensModule } from '@modules/screens';
 import { UsersModule } from '@modules/users';
 import { WidgetsModule } from '@modules/widgets';
 import { Module } from '@nestjs/common';
@@ -23,6 +25,8 @@ import { AppService } from './app.service';
     UsersModule,
     WidgetsModule,
     PluginsModule,
+    ScreensModule,
+    PluginInstancesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

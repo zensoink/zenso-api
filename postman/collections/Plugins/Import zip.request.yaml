@@ -8,7 +8,7 @@ body:
     - type: file
       key: file
       src:
-        - /Users/konradstepien/Downloads/plugin.zip
+        - /Users/konradstepien/Documents/plugin.zip
       description: ""
       disabled: false
 order: 4412952343015460

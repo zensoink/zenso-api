@@ -1,5 +1,5 @@
 $kind: http-request
 name: Install form registry
-url: ""
-method: GET
+url: install-from-registry
+method: POST
 order: 1686206192374586

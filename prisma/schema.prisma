@@ -13,13 +13,15 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  email     String   @unique
-  devices   Device[]
-  widgets   Widget[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int              @id @default(autoincrement())
+  name            String?
+  email           String           @unique
+  devices         Device[]
+  widgets         Widget[]
+  screens         Screen[]
+  pluginInstances PluginInstance[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Widget {
@@ -53,6 +55,7 @@ model Plugin {
   versions      PluginVersion[]
   configs       PluginConfig[]
   events        PluginInstallEvent[]
+  instances     PluginInstance[]
 }
 
 model PluginVersion {
@@ -71,6 +74,7 @@ model PluginVersion {
   installedAt     DateTime             @default(now())
 
   events          PluginInstallEvent[]
+  instances       PluginInstance[]
 
   @@unique([pluginId, version])
 }
@@ -107,6 +111,7 @@ model Device {
   palette   String[] @default(["#000000", "#ffffff", "#00ff00", "#0000ff", "#ff0000", "#ffff00", "#ff8000"])
 
   slots     DeviceWidget[]
+  screens   Screen[]
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
@@ -130,4 +135,56 @@ model DeviceWidget {
   h         Int      @default(12)
   device    Device   @relation(fields: [deviceId], references: [id])
   widget    Widget   @relation(fields: [widgetId], references: [id])
+}
+
+model Screen {
+  id         Int          @id @default(autoincrement())
+  name       String
+  userId     Int
+  user       User         @relation(fields: [userId], references: [id])
+  deviceId   Int?
+  device     Device?      @relation(fields: [deviceId], references: [id])
+  layoutType String       @default("full")
+  width      Int          @default(800)
+  height     Int          @default(480)
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  slots      ScreenSlot[]
+}
+
+model PluginInstance {
+  id              Int             @id @default(autoincrement())
+  pluginId        Int
+  plugin          Plugin          @relation(fields: [pluginId], references: [id])
+  pluginVersionId Int?
+  pluginVersion   PluginVersion?  @relation(fields: [pluginVersionId], references: [id])
+  name            String
+  configJson      Json?
+  executionMode   String          @default("local")
+  isEnabled       Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  userId          Int
+  user            User            @relation(fields: [userId], references: [id])
+
+  screenSlots     ScreenSlot[]
+}
+
+model ScreenSlot {
+  id              Int            @id @default(autoincrement())
+  screenId        Int
+  screen          Screen         @relation(fields: [screenId], references: [id])
+  pluginInstanceId Int
+  pluginInstance  PluginInstance @relation(fields: [pluginInstanceId], references: [id])
+  slotKey         String
+  x               Int            @default(0)
+  y               Int            @default(0)
+  w               Int            @default(0)
+  h               Int            @default(0)
+  zIndex          Int            @default(0)
+  renderOrder     Int            @default(0)
+
+  @@unique([screenId, slotKey])
 }
