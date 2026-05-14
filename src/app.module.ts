@@ -1,4 +1,5 @@
 import pluginsConfig from '@core/config/plugins.config';
+import registryConfig from '@core/config/registry.config';
 import { PrismaModule } from '@core/prisma';
 import { DevicesModule } from '@modules/devices/devices.module';
 import { PluginsModule } from '@modules/plugins';
@@ -14,7 +15,7 @@ import { AppService } from './app.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [pluginsConfig],
+      load: [pluginsConfig, registryConfig],
       envFilePath: '.env',
     }),
     PrismaModule,

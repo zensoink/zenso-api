@@ -7,6 +7,7 @@ import { PluginStorageService } from './services/plugin-storage.service';
 import { PluginValidatorService } from './services/plugin-validator.service';
 import { PluginZipService } from './services/plugin-zip.service';
 import { PluginsService } from './services/plugins.service';
+import { RegistryClient } from './services/registry-client.service';
 
 @Module({
   providers: [
@@ -16,8 +17,9 @@ import { PluginsService } from './services/plugins.service';
     PluginValidatorService,
     PluginAuditService,
     PluginZipService,
+    RegistryClient,
   ],
   controllers: [PluginsController, PluginsDebugController, PluginImportController],
-  exports: [PluginStorageService],
+  exports: [PluginStorageService, RegistryClient],
 })
 export class PluginsModule {}

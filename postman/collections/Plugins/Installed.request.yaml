@@ -1,0 +1,5 @@
+$kind: http-request
+name: Installed
+url: "{{URL}}/plugins/installed"
+method: GET
+order: 4224116605784782
