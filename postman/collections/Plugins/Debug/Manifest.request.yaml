@@ -6,5 +6,5 @@ pathVariables:
   - key: slug
     value: zenso__zenso-plugin-example
   - key: version
-    value: dev
+    value: 0.0.0
 order: 4042445977994983

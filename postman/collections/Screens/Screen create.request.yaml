@@ -1,0 +1,13 @@
+$kind: http-request
+name: Screen create
+url: "{{URL}}/screens"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "name": "test",
+      "userId": 1,
+      "deviceId": 1
+    }
+order: 1778784652609
