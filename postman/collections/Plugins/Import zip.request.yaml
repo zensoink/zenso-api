@@ -1,0 +1,14 @@
+$kind: http-request
+name: Import zip
+url: "{{URL}}/plugins/import/zip"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - /Users/konradstepien/Downloads/plugin.zip
+      description: ""
+      disabled: false
+order: 4412952343015460

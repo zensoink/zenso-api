@@ -5,6 +5,12 @@ import { Prisma } from '@prisma/client';
 import { PluginStorageService } from './plugin-storage.service';
 import { PluginValidatorService } from './plugin-validator.service';
 import { PluginZipService } from './plugin-zip.service';
+
+interface SourceInfo {
+  sourceRef?: string;
+  sourceUrl?: string;
+}
+
 @Injectable()
 export class PluginImportService {
   constructor(
@@ -16,6 +22,17 @@ export class PluginImportService {
 
   async importFromZipUpload(file: Express.Multer.File) {
     const tempZipPath = await this.pluginZipService.saveUploadToTemp(file);
+
+    return this.importFromZipPath(tempZipPath, { sourceRef: file.originalname });
+  }
+
+  async importFromRegistryZip(zipBuffer: Buffer, pluginId: string, version: string, sourceUrl: string) {
+    const tempZipPath = await this.pluginZipService.saveBufferToTemp(zipBuffer, `${pluginId}-${version}.zip`);
+
+    return this.importFromZipPath(tempZipPath, { sourceUrl });
+  }
+
+  private async importFromZipPath(tempZipPath: string, sourceInfo: SourceInfo) {
     const extractedDir = await this.pluginZipService.extractZipToTemp(tempZipPath);
 
     const validation = await this.pluginValidatorService.validateExtractedPlugin(extractedDir);
@@ -50,11 +67,12 @@ export class PluginImportService {
           pluginId: plugin.id,
           version,
           manifestJson: manifest as unknown as Prisma.InputJsonValue,
-          sourceUrl: null,
-          sourceRef: file.originalname,
+          sourceUrl: sourceInfo.sourceUrl ?? null,
+          sourceRef: sourceInfo.sourceRef ?? null,
           checksumSha256: validation.checksumSha256,
           signatureStatus: 'none',
           installPath: finalPath,
+          executionMode: 'local',
           status: 'installed',
         },
       });

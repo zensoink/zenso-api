@@ -65,7 +65,8 @@ model PluginVersion {
   sourceRef       String?
   checksumSha256  String?
   signatureStatus String               @default("none")
-  installPath     String
+  installPath     String?
+  executionMode   String               @default("local")
   status          String               @default("installed")
   installedAt     DateTime             @default(now())
 

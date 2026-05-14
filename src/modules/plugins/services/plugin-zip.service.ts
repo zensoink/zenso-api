@@ -22,6 +22,17 @@ export class PluginZipService {
     return zipPath;
   }
 
+  async saveBufferToTemp(buffer: Buffer, name?: string): Promise<string> {
+    const dir = path.join(this.getTempRoot(), 'uploads');
+    await fs.mkdir(dir, { recursive: true });
+
+    const suffix = name ? '-' + name.replaceAll(/[^a-zA-Z0-9._-]/g, '_') : '';
+    const zipPath = path.join(dir, `${randomUUID()}${suffix}.zip`);
+    await fs.writeFile(zipPath, buffer);
+
+    return zipPath;
+  }
+
   async extractZipToTemp(zipPath: string): Promise<string> {
     const extractDir = path.join(this.getTempRoot(), 'extracted', randomUUID());
     await fs.mkdir(extractDir, { recursive: true });

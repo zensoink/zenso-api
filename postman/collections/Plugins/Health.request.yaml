@@ -1,0 +1,5 @@
+$kind: http-request
+name: "Health"
+url: "{{URL}}/plugins/health"
+method: GET
+order: 1778406126447
