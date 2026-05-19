@@ -20,6 +20,6 @@ import { RegistryClient } from './services/registry-client.service';
     RegistryClient,
   ],
   controllers: [PluginsController, PluginsDebugController, PluginImportController],
-  exports: [PluginStorageService, RegistryClient],
+  exports: [PluginStorageService, RegistryClient, PluginImportService],
 })
 export class PluginsModule {}

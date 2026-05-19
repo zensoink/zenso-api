@@ -11,7 +11,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "pnpm run lint --fix",
-    "start": "nest start",
+    "start": "pnpm docker:up",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
@@ -25,6 +25,7 @@
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
@@ -36,6 +37,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.3",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.8.0",
     "adm-zip": "^0.5.17",
@@ -84,6 +86,9 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
