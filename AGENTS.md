@@ -2,7 +2,7 @@
 
 ## Overview
 
-Zenso API is a **smart widget rendering backend** for IoT devices (TRMNL/e-ink displays). Key constraints:
+Zenso API is a **smart widget rendering backend** for IoT devices (e-ink displays). Key constraints:
 
 - Backend-only (no frontend frameworks)
 - Server-side rendering with Puppeteer
