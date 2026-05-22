@@ -6,6 +6,7 @@ import { SeedModule } from '@core/seed';
 import { DevicesModule } from '@modules/devices/devices.module';
 import { PluginInstancesModule } from '@modules/plugin-instances';
 import { PluginsModule } from '@modules/plugins';
+import { RenderModule } from '@modules/render';
 import { ScreensModule } from '@modules/screens';
 import { UsersModule } from '@modules/users';
 import { WidgetsModule } from '@modules/widgets';
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     UsersModule,
     WidgetsModule,
     PluginsModule,
+    RenderModule,
     ScreensModule,
     PluginInstancesModule,
   ],

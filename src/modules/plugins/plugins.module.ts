@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 
-import { PluginImportController, PluginsController, PluginsDebugController } from './controllers';
+import {
+  PluginAssetsController,
+  PluginImportController,
+  PluginsController,
+  PluginsDebugController,
+} from './controllers';
 import { MockRegistryClient } from './services/mock-registry-client.service';
 import { PluginAuditService } from './services/plugin-audit.service';
 import { PluginImportService } from './services/plugin-import.service';
@@ -23,7 +28,7 @@ import { RegistryClient } from './services/registry-client.service';
       useClass: process.env.MOCK_REGISTRY === 'true' ? MockRegistryClient : RegistryClient,
     },
   ],
-  controllers: [PluginsController, PluginsDebugController, PluginImportController],
+  controllers: [PluginsController, PluginsDebugController, PluginImportController, PluginAssetsController],
   exports: [PluginStorageService, RegistryClient, PluginImportService],
 })
 export class PluginsModule {}

@@ -155,15 +155,16 @@ describe('RenderEngineService', () => {
 
       expect(result).toContain('<!DOCTYPE html>');
       expect(result).toContain('<html lang="pl">');
-      expect(result).toContain('<div>Content</div>');
+      expect(result).toContain('&lt;div&gt;Content&lt;/div&gt;');
       expect(result).toContain('width: 800px');
       expect(result).toContain('height: 480px');
     });
 
-    it('should include Tailwind CSS', () => {
+    it('should include Content-Security-Policy', () => {
       const result = getWidgetTemplate('<div>Test</div>', { width: 100, height: 100 });
 
-      expect(result).toContain('cdn.tailwindcss.com');
+      expect(result).toContain('Content-Security-Policy');
+      expect(result).toContain("script-src 'none'");
     });
 
     it('should set white background', () => {
@@ -182,6 +183,13 @@ describe('RenderEngineService', () => {
       const result = getWidgetTemplate('<div>Test</div>', { width: 100, height: 100 });
 
       expect(result).toContain('overflow: hidden');
+    });
+
+    it('should wrap content in sandboxed iframe', () => {
+      const result = getWidgetTemplate('<div>Test</div>', { width: 100, height: 100 });
+
+      expect(result).toContain('<iframe sandbox=""');
+      expect(result).toContain('srcdoc="');
     });
   });
 
