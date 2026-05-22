@@ -35,15 +35,15 @@ export class RenderOrchestratorService {
       throw new NotFoundException(`Screen ${screenId} not found`);
     }
 
-    const slots = screen.slots.map(s => ({
-      pluginInstanceId: s.pluginInstanceId,
-      pluginVersion: s.pluginInstance?.pluginVersion?.version ?? null,
-      configJson: s.pluginInstance?.configJson,
-      x: s.x,
-      y: s.y,
-      w: s.w,
-      h: s.h,
-      zIndex: s.zIndex,
+    const slots = screen.slots.map(({ x, zIndex, y, w, h, pluginInstanceId, pluginInstance }) => ({
+      pluginVersion: pluginInstance?.pluginVersion?.version ?? null,
+      configJson: pluginInstance?.configJson,
+      pluginInstanceId,
+      x,
+      y,
+      w,
+      h,
+      zIndex,
     }));
 
     const cacheKey = this.renderCacheService.generateKey(screen.id, screen.width, screen.height, slots, runtimeData);

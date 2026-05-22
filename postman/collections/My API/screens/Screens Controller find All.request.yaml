@@ -1,0 +1,5 @@
+$kind: http-request
+url: "{{baseUrl}}/screens"
+method: GET
+examples: ./.resources/Screens Controller find All.resources/examples
+order: 3000

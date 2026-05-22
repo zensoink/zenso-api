@@ -1,0 +1,5 @@
+$kind: http-request
+url: "{{baseUrl}}/plugins/health"
+method: GET
+examples: ./.resources/Plugins Controller health.resources/examples
+order: 1000

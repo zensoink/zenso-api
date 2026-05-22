@@ -1,0 +1,5 @@
+$kind: collection
+name: My API
+description: API documentation
+variables:
+  baseUrl: http://localhost:3000

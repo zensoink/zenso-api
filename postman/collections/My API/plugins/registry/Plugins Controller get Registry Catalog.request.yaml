@@ -1,0 +1,5 @@
+$kind: http-request
+url: "{{baseUrl}}/plugins/registry"
+method: GET
+examples: ./.resources/Plugins Controller get Registry Catalog.resources/examples
+order: 2000

@@ -1,0 +1,13 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/screens/:id"
+  method: GET
+  pathVariables:
+    id: "2646.0319639377108"
+response:
+  statusCode: 200
+  statusText: OK
+  body:
+    type: text
+    content: ""
+order: 1000

@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/plugins/install-from-registry"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+examples: ./.resources/Plugins Controller install From Registry.resources/examples
+order: 1000

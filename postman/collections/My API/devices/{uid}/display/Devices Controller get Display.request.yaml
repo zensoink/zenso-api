@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/devices/:uid/display?slot=string&format=string"
+method: GET
+queryParams:
+  slot: string
+  format: string
+pathVariables:
+  uid: string
+examples: ./.resources/Devices Controller get Display.resources/examples
+order: 1000

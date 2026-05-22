@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/screens"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+examples: ./.resources/Screens Controller create.resources/examples
+order: 2000
