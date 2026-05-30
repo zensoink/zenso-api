@@ -1,5 +1,0 @@
-$kind: http-request
-name: Find all
-url: "{{URL}}/plugin-instances"
-method: GET
-order: 1778785291898

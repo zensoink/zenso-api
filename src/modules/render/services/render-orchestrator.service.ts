@@ -1,6 +1,8 @@
 import { PrismaService } from '@core/prisma';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { getDefaultPalettes } from 'epdoptimize';
 
+import { EpdImageService } from './epd-image.service';
 import { RenderCacheService } from './render-cache.service';
 import { ScreenComposerService } from './screen-composer.service';
 import { ScreenRenderService } from './screen-render.service';
@@ -11,10 +13,32 @@ export class RenderOrchestratorService {
     private readonly prisma: PrismaService,
     private readonly screenRenderService: ScreenRenderService,
     private readonly screenComposerService: ScreenComposerService,
-    private readonly renderCacheService: RenderCacheService
+    private readonly renderCacheService: RenderCacheService,
+    private readonly epdImageService: EpdImageService
   ) {}
 
-  async render(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
+  async renderPreview(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
+    const png = await this.buildScreenPng(screenId, runtimeData);
+    const { width, height, palette, mode } = await this.getScreenRenderConfig(screenId);
+    return this.epdImageService.renderPreview({ input: png, width, height, palette, mode });
+  }
+
+  async renderForDevice(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
+    const png = await this.buildScreenPng(screenId, runtimeData);
+    const { width, height, palette, mode } = await this.getScreenRenderConfig(screenId);
+    return this.epdImageService.renderForDevice({ input: png, width, height, palette, mode });
+  }
+
+  private async getScreen(screenId: number) {
+    const screen = await this.prisma.screen.findUnique({
+      where: { id: screenId },
+      include: { device: true },
+    });
+    if (!screen) throw new NotFoundException(`Screen ${screenId} not found`);
+    return screen;
+  }
+
+  private async buildScreenPng(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
     const screen = await this.prisma.screen.findUnique({
       where: { id: screenId },
       include: {
@@ -72,5 +96,24 @@ export class RenderOrchestratorService {
     this.renderCacheService.set(cacheKey, png);
 
     return png;
+  }
+
+  private async getScreenRenderConfig(screenId: number): Promise<{
+    width: number;
+    height: number;
+    palette: string[];
+    mode: 'photo' | 'ui';
+  }> {
+    const screen = await this.getScreen(screenId);
+    return {
+      width: screen.width,
+      height: screen.height,
+      palette: screen.palette.length > 0 ? screen.palette : this.getDefaultPalette(),
+      mode: (screen.renderMode as 'photo' | 'ui') || 'ui',
+    };
+  }
+
+  private getDefaultPalette(): string[] {
+    return getDefaultPalettes('acep');
   }
 }

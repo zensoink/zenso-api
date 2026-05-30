@@ -1,6 +1,0 @@
-$kind: http-request
-name: Ensure
-description: This elements creates new plugin path in the app.
-url: "{{URL}}/plugins-debug/ensure/zenso__test-plugin/dev"
-method: GET
-order: 1778408435362

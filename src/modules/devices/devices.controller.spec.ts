@@ -1,6 +1,6 @@
 import { PrismaService } from '@core/prisma';
-import { WidgetsService } from '@modules/widgets/widgets.service';
-import { NotFoundException } from '@nestjs/common';
+import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { StreamableFile } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -13,8 +13,9 @@ describe('DevicesController', () => {
       findUnique: jest.Mock;
     };
   };
-  let mockWidgetsService: {
-    renderWidget: jest.Mock;
+  let mockRenderOrchestratorService: {
+    renderPreview: jest.Mock;
+    renderForDevice: jest.Mock;
   };
 
   const mockDevice = {
@@ -25,32 +26,11 @@ describe('DevicesController', () => {
     height: 480,
     palette: ['#000000', '#ffffff', '#ff0000'],
     userId: 1,
-    slots: [
+    screens: [
       {
         id: 1,
-        position: 0,
-        x: 0,
-        y: 0,
-        w: 12,
-        h: 12,
-        widget: {
-          id: 1,
-          name: 'Test Widget',
-          template: '<div>Hello</div>',
-        },
-      },
-      {
-        id: 2,
-        position: 1,
-        x: 0,
-        y: 0,
-        w: 12,
-        h: 12,
-        widget: {
-          id: 2,
-          name: 'Second Widget',
-          template: '<div>World</div>',
-        },
+        name: 'Default Screen',
+        isActive: true,
       },
     ],
   };
@@ -62,15 +42,16 @@ describe('DevicesController', () => {
       },
     };
 
-    mockWidgetsService = {
-      renderWidget: jest.fn().mockResolvedValue(Buffer.from('mock-image')),
+    mockRenderOrchestratorService = {
+      renderPreview: jest.fn().mockResolvedValue(Buffer.from('mock-png')),
+      renderForDevice: jest.fn().mockResolvedValue(Buffer.from('mock-raw')),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DevicesController],
       providers: [
         { provide: PrismaService, useValue: mockPrismaService },
-        { provide: WidgetsService, useValue: mockWidgetsService },
+        { provide: RenderOrchestratorService, useValue: mockRenderOrchestratorService },
       ],
     }).compile();
 
@@ -82,44 +63,42 @@ describe('DevicesController', () => {
   });
 
   describe('getDisplay', () => {
-    it('should return widget image for device', async () => {
+    it('should return device display via renderPreview when format=png', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
 
-      const result = await controller.getDisplay('device-123');
+      const result = await controller.getDisplay('device-123', 'png');
 
       expect(mockPrismaService.device.findUnique).toHaveBeenCalledWith({
         where: { uid: 'device-123' },
         include: {
-          slots: {
-            include: { widget: true },
-            orderBy: { position: 'asc' },
+          screens: {
+            where: { isActive: true },
+            orderBy: { id: 'asc' },
+            take: 1,
           },
         },
       });
-      expect(mockWidgetsService.renderWidget).toHaveBeenCalledWith({
-        template: '<div>Hello</div>',
-        width: 800,
-        height: 480,
-        data: { deviceName: 'Test Device' },
-        palette: ['#000000', '#ffffff', '#ff0000'],
-        outputFormat: 'raw',
-      });
+      expect(mockRenderOrchestratorService.renderPreview).toHaveBeenCalledWith(1);
+      expect(mockRenderOrchestratorService.renderForDevice).not.toHaveBeenCalled();
       expect(result).toBeInstanceOf(StreamableFile);
     });
 
-    it('should return second slot when slot param is provided', async () => {
+    it('should return device display via renderForDevice when format=raw', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
 
-      await controller.getDisplay('device-123', '1');
+      const result = await controller.getDisplay('device-123', 'raw');
 
-      expect(mockWidgetsService.renderWidget).toHaveBeenCalledWith({
-        template: '<div>World</div>',
-        width: 800,
-        height: 480,
-        data: { deviceName: 'Test Device' },
-        palette: ['#000000', '#ffffff', '#ff0000'],
-        outputFormat: 'raw',
-      });
+      expect(mockRenderOrchestratorService.renderForDevice).toHaveBeenCalledWith(1);
+      expect(mockRenderOrchestratorService.renderPreview).not.toHaveBeenCalled();
+      expect(result).toBeInstanceOf(StreamableFile);
+    });
+
+    it('should default to renderForDevice when format is not specified', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+
+      await controller.getDisplay('device-123');
+
+      expect(mockRenderOrchestratorService.renderForDevice).toHaveBeenCalledWith(1);
     });
 
     it('should throw NotFoundException when device not found', async () => {
@@ -128,31 +107,19 @@ describe('DevicesController', () => {
       await expect(controller.getDisplay('non-existent')).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw NotFoundException when device has no slots', async () => {
+    it('should throw NotFoundException when device has no active screens', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue({
         ...mockDevice,
-        slots: [],
+        screens: [],
       });
 
       await expect(controller.getDisplay('device-123')).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw NotFoundException when slot index is out of bounds', async () => {
+    it('should throw BadRequestException when format is invalid', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
 
-      await expect(controller.getDisplay('device-123', '5')).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw NotFoundException when slot param is invalid', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
-
-      await expect(controller.getDisplay('device-123', 'abc')).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw NotFoundException when slot param is negative', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
-
-      await expect(controller.getDisplay('device-123', '-1')).rejects.toThrow(NotFoundException);
+      await expect(controller.getDisplay('device-123', 'bmp')).rejects.toThrow(BadRequestException);
     });
   });
 });

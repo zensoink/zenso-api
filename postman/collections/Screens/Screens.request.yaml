@@ -1,5 +1,0 @@
-$kind: http-request
-name: Screens
-url: "{{URL}}/screens"
-method: GET
-order: 1439416591505815

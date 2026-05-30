@@ -51,12 +51,4 @@ export class ScreenSlotsService {
       },
     });
   }
-
-  async findByScreenId(screenId: number) {
-    return this.prisma.screenSlot.findMany({
-      where: { screenId },
-      include: { pluginInstance: true },
-      orderBy: { renderOrder: 'asc' },
-    });
-  }
 }

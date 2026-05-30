@@ -7,10 +7,17 @@ import { RenderOrchestratorService } from './services/render-orchestrator.servic
 export class RenderController {
   constructor(private readonly renderOrchestratorService: RenderOrchestratorService) {}
 
-  @Post(':id/render')
+  @Post(':id/render/preview')
   @Header('Content-Type', 'image/png')
-  async render(@Param('id', ParseIntPipe) id: number, @Body() dto?: RenderScreenDTO): Promise<StreamableFile> {
-    const png = await this.renderOrchestratorService.render(id, dto?.context);
+  async renderPreview(@Param('id', ParseIntPipe) id: number, @Body() dto?: RenderScreenDTO): Promise<StreamableFile> {
+    const png = await this.renderOrchestratorService.renderPreview(id, dto?.context);
     return new StreamableFile(png);
+  }
+
+  @Post(':id/render/device')
+  @Header('Content-Type', 'application/octet-stream')
+  async renderForDevice(@Param('id', ParseIntPipe) id: number, @Body() dto?: RenderScreenDTO): Promise<StreamableFile> {
+    const raw = await this.renderOrchestratorService.renderForDevice(id, dto?.context);
+    return new StreamableFile(raw);
   }
 }

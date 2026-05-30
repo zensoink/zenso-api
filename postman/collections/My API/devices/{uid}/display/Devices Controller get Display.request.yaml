@@ -1,8 +1,7 @@
 $kind: http-request
-url: "{{baseUrl}}/devices/:uid/display?slot=string&format=string"
+url: "{{baseUrl}}/devices/:uid/display?format=string"
 method: GET
 queryParams:
-  slot: string
   format: string
 pathVariables:
   uid: string

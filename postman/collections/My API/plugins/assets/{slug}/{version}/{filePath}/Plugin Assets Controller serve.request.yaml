@@ -1,0 +1,9 @@
+$kind: http-request
+url: "{{baseUrl}}/plugins/assets/:slug/:version/:filePath"
+method: GET
+pathVariables:
+  slug: string
+  version: string
+  filePath: string
+examples: ./.resources/Plugin Assets Controller serve.resources/examples
+order: 1000
