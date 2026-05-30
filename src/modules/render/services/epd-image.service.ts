@@ -14,15 +14,13 @@ export class EpdImageService {
     palette: string[];
     mode: RenderMode;
   }): Promise<Buffer> {
-    const preprocessed = await this.preprocess(params.input, params.width, params.height);
+    const resized = await sharp(params.input)
+      .resize(params.width, params.height, { fit: 'fill', kernel: sharp.kernel.lanczos3 })
+      .flatten({ background: '#ffffff' })
+      .png()
+      .toBuffer();
 
-    const ditheredCanvas = await this.applyDithering(
-      preprocessed,
-      params.width,
-      params.height,
-      params.palette,
-      params.mode
-    );
+    const ditheredCanvas = await this.applyDithering(resized, params.width, params.height, params.palette);
 
     return ditheredCanvas.toBuffer('image/png');
   }
@@ -36,13 +34,7 @@ export class EpdImageService {
   }): Promise<Buffer> {
     const preprocessed = await this.preprocess(params.input, params.width, params.height);
 
-    const ditheredCanvas = await this.applyDithering(
-      preprocessed,
-      params.width,
-      params.height,
-      params.palette,
-      params.mode
-    );
+    const ditheredCanvas = await this.applyDithering(preprocessed, params.width, params.height, params.palette);
 
     return this.canvasToPackedRaw4bpp(ditheredCanvas, params.width, params.height, params.palette);
   }
@@ -57,13 +49,7 @@ export class EpdImageService {
       .toBuffer();
   }
 
-  private async applyDithering(
-    inputBuffer: Buffer,
-    width: number,
-    height: number,
-    palette: string[],
-    mode: RenderMode
-  ) {
+  private async applyDithering(inputBuffer: Buffer, width: number, height: number, palette: string[]) {
     const sourceImage = await loadImage(inputBuffer);
     const inputCanvas = createCanvas(width, height);
     const outputCanvas = createCanvas(width, height);
@@ -72,7 +58,7 @@ export class EpdImageService {
     inputCtx.drawImage(sourceImage, 0, 0, width, height);
 
     await ditherImage(inputCanvas, outputCanvas, {
-      ditheringType: mode === 'photo' ? 'errorDiffusion' : 'quantizationOnly',
+      ditheringType: 'errorDiffusion',
       errorDiffusionMatrix: 'floydSteinberg',
       serpentine: true,
       palette,

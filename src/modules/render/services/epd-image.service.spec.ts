@@ -31,7 +31,7 @@ describe('EpdImageService', () => {
 
   describe('renderPreview', () => {
     it('should return PNG from dithered canvas toBuffer', async () => {
-      const mockPngBuffer = Buffer.from('mock-png-output');
+      const mockPngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
       (createCanvas as jest.Mock).mockImplementation(() => ({
         getContext: jest.fn(() => ({ drawImage: jest.fn() })),
@@ -47,29 +47,60 @@ describe('EpdImageService', () => {
       });
 
       expect(result).toBe(mockPngBuffer);
+      expect(result.slice(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
       expect(ditherImage).toHaveBeenCalledTimes(1);
     });
 
-    it('should always call ditherImage regardless of mode', async () => {
+    it('should skip brightness/contrast preprocessing that renderForDevice applies', async () => {
+      const mockSharpChain = {
+        resize: jest.fn().mockReturnThis(),
+        modulate: jest.fn().mockReturnThis(),
+        linear: jest.fn().mockReturnThis(),
+        flatten: jest.fn().mockReturnThis(),
+        png: jest.fn().mockReturnThis(),
+        toBuffer: jest.fn().mockResolvedValue(Buffer.from('mock-processed')),
+      };
+      (sharp as unknown as jest.Mock).mockReturnValue(mockSharpChain);
+
+      (createCanvas as jest.Mock).mockImplementation(() => ({
+        getContext: jest.fn(() => ({
+          drawImage: jest.fn(),
+          getImageData: jest.fn(() => ({ data: new Uint8ClampedArray(32 * 4) })),
+        })),
+        toBuffer: jest.fn(() => Buffer.from('preview-png')),
+      }));
+
+      (ditherImage as jest.Mock).mockClear();
+
+      const params = {
+        input: Buffer.from('fake-png'),
+        width: 4,
+        height: 8,
+        palette: ['#000000', '#ffffff'],
+        mode: 'photo' as const,
+      };
+
+      const previewResult = await service.renderPreview(params);
+      expect(mockSharpChain.modulate).not.toHaveBeenCalled();
+      expect(mockSharpChain.linear).not.toHaveBeenCalled();
+
+      jest.clearAllMocks();
+      (sharp as unknown as jest.Mock).mockReturnValue(mockSharpChain);
+
+      const deviceResult = await service.renderForDevice(params);
+      expect(mockSharpChain.modulate).toHaveBeenCalled();
+      expect(mockSharpChain.linear).toHaveBeenCalled();
+
+      expect(previewResult).not.toEqual(deviceResult);
+    });
+
+    it('should always use errorDiffusion dithering regardless of mode', async () => {
       (createCanvas as jest.Mock).mockImplementation(() => ({
         getContext: jest.fn(() => ({ drawImage: jest.fn() })),
         toBuffer: jest.fn(() => Buffer.from('png')),
       }));
 
-      const mockDitherImage = ditherImage as jest.Mock;
-      mockDitherImage.mockClear();
-
-      await service.renderPreview({
-        input: Buffer.from('fake-png'),
-        width: 8,
-        height: 8,
-        palette: ['#000000', '#ffffff'],
-        mode: 'photo',
-      });
-
-      expect(mockDitherImage).toHaveBeenCalledTimes(1);
-
-      mockDitherImage.mockClear();
+      (ditherImage as jest.Mock).mockClear();
 
       await service.renderPreview({
         input: Buffer.from('fake-png'),
@@ -79,14 +110,11 @@ describe('EpdImageService', () => {
         mode: 'ui',
       });
 
-      expect(mockDitherImage).toHaveBeenCalledTimes(1);
-    });
-
-    it('should use errorDiffusion dithering for photo mode', async () => {
-      (createCanvas as jest.Mock).mockImplementation(() => ({
-        getContext: jest.fn(() => ({ drawImage: jest.fn() })),
-        toBuffer: jest.fn(() => Buffer.from('png')),
-      }));
+      expect(ditherImage).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ ditheringType: 'errorDiffusion' })
+      );
 
       (ditherImage as jest.Mock).mockClear();
 
@@ -102,29 +130,6 @@ describe('EpdImageService', () => {
         expect.anything(),
         expect.anything(),
         expect.objectContaining({ ditheringType: 'errorDiffusion' })
-      );
-    });
-
-    it('should use quantizationOnly dithering for ui mode', async () => {
-      (createCanvas as jest.Mock).mockImplementation(() => ({
-        getContext: jest.fn(() => ({ drawImage: jest.fn() })),
-        toBuffer: jest.fn(() => Buffer.from('png')),
-      }));
-
-      (ditherImage as jest.Mock).mockClear();
-
-      await service.renderPreview({
-        input: Buffer.from('fake-png'),
-        width: 8,
-        height: 8,
-        palette: ['#000000', '#ffffff'],
-        mode: 'ui',
-      });
-
-      expect(ditherImage).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        expect.objectContaining({ ditheringType: 'quantizationOnly' })
       );
     });
   });
@@ -210,7 +215,7 @@ describe('EpdImageService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should use errorDiffusion dithering for photo mode', async () => {
+    it('should always use errorDiffusion dithering regardless of mode', async () => {
       const mockDitherImage = ditherImage as jest.Mock;
       mockDitherImage.mockClear();
 
@@ -227,10 +232,7 @@ describe('EpdImageService', () => {
         expect.anything(),
         expect.objectContaining({ ditheringType: 'errorDiffusion' })
       );
-    });
 
-    it('should use quantizationOnly dithering for ui mode', async () => {
-      const mockDitherImage = ditherImage as jest.Mock;
       mockDitherImage.mockClear();
 
       await service.renderForDevice({
@@ -244,35 +246,8 @@ describe('EpdImageService', () => {
       expect(mockDitherImage).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        expect.objectContaining({ ditheringType: 'quantizationOnly' })
+        expect.objectContaining({ ditheringType: 'errorDiffusion' })
       );
-    });
-
-    it('should always call ditherImage regardless of mode', async () => {
-      const mockDitherImage = ditherImage as jest.Mock;
-      mockDitherImage.mockClear();
-
-      await service.renderForDevice({
-        input: Buffer.from('fake-png'),
-        width: 8,
-        height: 8,
-        palette: ['#000000', '#ffffff'],
-        mode: 'photo',
-      });
-
-      expect(mockDitherImage).toHaveBeenCalledTimes(1);
-
-      mockDitherImage.mockClear();
-
-      await service.renderForDevice({
-        input: Buffer.from('fake-png'),
-        width: 8,
-        height: 8,
-        palette: ['#000000', '#ffffff'],
-        mode: 'ui',
-      });
-
-      expect(mockDitherImage).toHaveBeenCalledTimes(1);
     });
   });
 });
