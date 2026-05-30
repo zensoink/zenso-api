@@ -10,8 +10,11 @@ interface CacheEntry {
 @Injectable()
 export class RenderCacheService {
   private readonly cache = new Map<string, CacheEntry>();
-  private readonly defaultTtlMs = 60_000;
-  // private readonly defaultTtlMs = 1;
+  private readonly defaultTtlMs = process.env.RENDER_CACHE_TTL_MS
+    ? parseInt(process.env.RENDER_CACHE_TTL_MS, 10)
+    : process.env.NODE_ENV === 'production'
+      ? 3_600_000
+      : 1;
 
   generateKey(
     screenId: number,

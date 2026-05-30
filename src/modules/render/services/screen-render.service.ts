@@ -42,6 +42,7 @@ export class ScreenRenderService {
     return Promise.all(
       screen.slots.map(async slot => {
         const { html } = await this.pluginExecutionService.execute({
+          screenId,
           pluginInstanceId: slot.pluginInstanceId,
           runtimeData,
           width: slot.w,
