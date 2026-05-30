@@ -6,6 +6,8 @@ import { PluginStorageService } from '@modules/plugins/services/plugin-storage.s
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Liquid } from 'liquidjs';
 
+import { ContextAggregationService } from './context-aggregation.service';
+
 const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -27,10 +29,12 @@ const MIME_TYPES: Record<string, string> = {
 export class PluginExecutionService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pluginStorageService: PluginStorageService
+    private readonly pluginStorageService: PluginStorageService,
+    private readonly contextAggregationService: ContextAggregationService
   ) {}
 
   async execute(params: {
+    screenId: number;
     pluginInstanceId: number;
     runtimeData?: Record<string, unknown>;
     width: number;
@@ -84,12 +88,17 @@ export class PluginExecutionService {
       throw new NotFoundException(`Template not found at ${templatePath} for plugin "${instance.plugin.name}"`);
     }
 
-    const context = {
-      config: instance.configJson ?? {},
-      ...params.runtimeData,
+    const manifestJson = pluginVersion.manifestJson as Record<string, unknown> | undefined;
+
+    const context = await this.contextAggregationService.buildContext({
+      screenId: params.screenId,
+      runtimeData: params.runtimeData,
+      configJson: (instance.configJson as Record<string, unknown>) ?? {},
+      manifestJson,
+      pluginVersion: pluginVersion.version,
       width: params.width,
       height: params.height,
-    };
+    });
 
     const liquid = new Liquid({ root: templateDir });
 
