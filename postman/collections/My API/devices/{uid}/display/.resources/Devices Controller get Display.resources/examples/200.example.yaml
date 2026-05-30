@@ -1,0 +1,16 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/devices/:uid/display?slot=string&format=string"
+  method: GET
+  queryParams:
+    slot: string
+    format: string
+  pathVariables:
+    uid: string
+response:
+  statusCode: 200
+  statusText: OK
+  body:
+    type: text
+    content: ""
+order: 1000

@@ -1,0 +1,7 @@
+$kind: http-request
+url: "{{baseUrl}}/plugins/registry/:pluginId"
+method: GET
+pathVariables:
+  pluginId: string
+examples: ./.resources/Plugins Controller get Registry Plugin.resources/examples
+order: 2000

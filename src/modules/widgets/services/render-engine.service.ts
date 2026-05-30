@@ -7,18 +7,30 @@ import sharp from 'sharp';
 
 export type RenderMode = 'photo' | 'ui';
 
+function escapeSrcdoc(content: string): string {
+  return content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function getWidgetTemplate(content: string, { width, height }: { width: number; height: number }): string {
   return `
       <!DOCTYPE html>
       <html lang="pl">
         <head>
           <meta charset="UTF-8" />
-          <script src="https://cdn.tailwindcss.com"></script>
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; font-src 'self' data:; frame-src 'self'; frame-ancestors 'none';" />
           <style>
             html, body { margin: 0; padding: 0; width: ${width}px; height: ${height}px; overflow: hidden; background: #ffffff; }
+            iframe { border: none; width: 100%; height: 100%; }
           </style>
         </head>
-        <body>${content}</body>
+        <body>
+          <iframe sandbox="" srcdoc="${escapeSrcdoc(content)}" width="${width}" height="${height}"></iframe>
+        </body>
       </html>
     `;
 }
@@ -106,6 +118,50 @@ export class RenderEngineService implements OnModuleInit, OnModuleDestroy {
       return packedRaw;
     } catch (err) {
       this.logger.error('Rendering error:', err);
+      throw err;
+    } finally {
+      await page.close().catch(() => {});
+    }
+  }
+
+  async renderHtmlToPng(html: string, width: number, height: number): Promise<Buffer> {
+    const page = await this.browser.newPage();
+
+    try {
+      await page.setViewport({ width, height, deviceScaleFactor: 1 });
+      await page.goto(`data:text/html,${encodeURIComponent(html)}`);
+      await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
+
+      const screenshot = await page.screenshot({
+        type: 'png',
+        clip: { x: 0, y: 0, width, height },
+      });
+
+      return Buffer.from(screenshot);
+    } catch (err) {
+      this.logger.error('HTML-to-PNG rendering error:', err);
+      throw err;
+    } finally {
+      await page.close().catch(() => {});
+    }
+  }
+
+  async renderFileToPng(filePath: string, width: number, height: number): Promise<Buffer> {
+    const page = await this.browser.newPage();
+
+    try {
+      await page.setViewport({ width, height, deviceScaleFactor: 1 });
+      await page.goto(`file://${filePath}`);
+      await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
+
+      const screenshot = await page.screenshot({
+        type: 'png',
+        clip: { x: 0, y: 0, width, height },
+      });
+
+      return Buffer.from(screenshot);
+    } catch (err) {
+      this.logger.error('File-to-PNG rendering error:', err);
       throw err;
     } finally {
       await page.close().catch(() => {});

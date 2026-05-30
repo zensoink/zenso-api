@@ -1,0 +1,5 @@
+$kind: http-request
+url: "{{baseUrl}}/plugins/installed"
+method: GET
+examples: ./.resources/Plugins Controller get Installed Plugins.resources/examples
+order: 1000
