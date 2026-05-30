@@ -113,7 +113,11 @@ describe('EpdImageService', () => {
       expect(ditherImage).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        expect.objectContaining({ ditheringType: 'errorDiffusion' })
+        expect.objectContaining({
+          ditheringType: 'errorDiffusion',
+          processingPreset: 'balanced',
+          colorMatching: 'lab',
+        })
       );
 
       (ditherImage as jest.Mock).mockClear();
@@ -129,7 +133,11 @@ describe('EpdImageService', () => {
       expect(ditherImage).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        expect.objectContaining({ ditheringType: 'errorDiffusion' })
+        expect.objectContaining({
+          ditheringType: 'errorDiffusion',
+          processingPreset: 'balanced',
+          colorMatching: 'lab',
+        })
       );
     });
   });
@@ -230,7 +238,11 @@ describe('EpdImageService', () => {
       expect(mockDitherImage).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        expect.objectContaining({ ditheringType: 'errorDiffusion' })
+        expect.objectContaining({
+          ditheringType: 'errorDiffusion',
+          processingPreset: 'balanced',
+          colorMatching: 'lab',
+        })
       );
 
       mockDitherImage.mockClear();
@@ -246,7 +258,11 @@ describe('EpdImageService', () => {
       expect(mockDitherImage).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        expect.objectContaining({ ditheringType: 'errorDiffusion' })
+        expect.objectContaining({
+          ditheringType: 'errorDiffusion',
+          processingPreset: 'balanced',
+          colorMatching: 'lab',
+        })
       );
     });
   });

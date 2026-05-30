@@ -58,10 +58,12 @@ export class EpdImageService {
     inputCtx.drawImage(sourceImage, 0, 0, width, height);
 
     await ditherImage(inputCanvas, outputCanvas, {
+      processingPreset: 'balanced',
       ditheringType: 'errorDiffusion',
       errorDiffusionMatrix: 'floydSteinberg',
       serpentine: true,
       palette,
+      colorMatching: 'lab',
     });
 
     return outputCanvas;
