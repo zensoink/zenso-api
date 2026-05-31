@@ -2,20 +2,27 @@ import { PrismaService } from '@core/prisma';
 import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Header,
   NotFoundException,
   Param,
+  Post,
   Query,
   StreamableFile,
 } from '@nestjs/common';
+
+import { DevicesService } from './devices.service';
+import { DeviceCheckInDto } from './dto/device-check-in.dto';
+import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
 
 @Controller('devices')
 export class DevicesController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly renderOrchestratorService: RenderOrchestratorService
+    private readonly renderOrchestratorService: RenderOrchestratorService,
+    private readonly devicesService: DevicesService
   ) {}
 
   @Get(':uid/display')
@@ -55,5 +62,10 @@ export class DevicesController {
       type: format === 'preview' ? 'image/png' : 'application/octet-stream',
       disposition: `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`,
     });
+  }
+
+  @Post(':uid/check-in')
+  async checkIn(@Param('uid') uid: string, @Body() dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
+    return this.devicesService.checkIn(uid, dto);
   }
 }
