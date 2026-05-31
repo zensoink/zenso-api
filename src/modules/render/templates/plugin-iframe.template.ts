@@ -13,6 +13,8 @@ export function getWidgetTemplate(content: string, { width, height }: { width: n
       <html lang="pl">
         <head>
           <meta charset="UTF-8" />
+          <!-- TODO: check security -->
+          <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; font-src 'self' data:; frame-src 'self'; frame-ancestors 'none';" /> -->
           <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'none'; img-src * data:; font-src 'self' data:; frame-src 'self'; frame-ancestors 'none';" />
           <style>
             html, body { margin: 0; padding: 0; width: ${width}px; height: ${height}px; overflow: hidden; background: #ffffff; }
