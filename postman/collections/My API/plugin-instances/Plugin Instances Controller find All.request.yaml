@@ -1,5 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/plugin-instances"
-method: GET
-examples: ./.resources/Plugin Instances Controller find All.resources/examples
-order: 2000

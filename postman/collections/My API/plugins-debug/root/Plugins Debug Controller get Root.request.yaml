@@ -1,5 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/plugins-debug/root"
-method: GET
-examples: ./.resources/Plugins Debug Controller get Root.resources/examples
-order: 1000

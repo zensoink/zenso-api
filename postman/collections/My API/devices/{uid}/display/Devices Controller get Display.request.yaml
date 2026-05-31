@@ -1,9 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/devices/:uid/display?format=string"
-method: GET
-queryParams:
-  format: string
-pathVariables:
-  uid: string
-examples: ./.resources/Devices Controller get Display.resources/examples
-order: 1000
