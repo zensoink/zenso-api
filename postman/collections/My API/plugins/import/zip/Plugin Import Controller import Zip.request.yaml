@@ -1,5 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/plugins/import/zip"
-method: POST
-examples: ./.resources/Plugin Import Controller import Zip.resources/examples
-order: 1000

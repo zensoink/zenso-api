@@ -1,7 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/screens/:id"
-method: GET
-pathVariables:
-  id: "2646.0319639377108"
-examples: ./.resources/Screens Controller find By Id.resources/examples
-order: 3000

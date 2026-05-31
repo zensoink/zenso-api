@@ -1,5 +1,0 @@
-$kind: http-request
-name: Registry
-url: "{{URL}}/plugins/registry"
-method: GET
-order: 1778782043397

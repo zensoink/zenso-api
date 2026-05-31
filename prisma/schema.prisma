@@ -17,22 +17,10 @@ model User {
   name            String?
   email           String           @unique
   devices         Device[]
-  widgets         Widget[]
   screens         Screen[]
   pluginInstances PluginInstance[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-}
-
-model Widget {
-  id        Int            @id @default(autoincrement())
-  name      String
-  template  String         //  LiquidJS HTML
-  userId    Int
-  user      User           @relation(fields: [userId], references: [id])
-  displaySlots DeviceWidget[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
 }
 
 model Plugin {
@@ -53,8 +41,6 @@ model Plugin {
   updatedAt     DateTime             @updatedAt
 
   versions      PluginVersion[]
-  configs       PluginConfig[]
-  events        PluginInstallEvent[]
   instances     PluginInstance[]
 }
 
@@ -73,33 +59,9 @@ model PluginVersion {
   status          String               @default("installed")
   installedAt     DateTime             @default(now())
 
-  events          PluginInstallEvent[]
   instances       PluginInstance[]
 
   @@unique([pluginId, version])
-}
-
-model PluginConfig {
-  id               Int      @id @default(autoincrement())
-  pluginId         Int
-  plugin           Plugin   @relation(fields: [pluginId], references: [id])
-  scopeType        String   @default("global")
-  scopeId          String?
-  configJson       Json
-  secretsEncrypted String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-model PluginInstallEvent {
-  id              Int            @id @default(autoincrement())
-  pluginId        Int
-  plugin          Plugin         @relation(fields: [pluginId], references: [id])
-  pluginVersionId Int?
-  pluginVersion   PluginVersion? @relation(fields: [pluginVersionId], references: [id])
-  eventType       String
-  message         String?
-  createdAt       DateTime       @default(now())
 }
 
 model Device {
@@ -108,9 +70,8 @@ model Device {
   name      String
   width     Int      @default(800)
   height    Int      @default(480)
-  palette   String[] @default(["#000000", "#ffffff", "#00ff00", "#0000ff", "#ff0000", "#ffff00", "#ff8000"])
+  palette   String[] @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
 
-  slots     DeviceWidget[]
   screens   Screen[]
 
   userId    Int
@@ -120,21 +81,6 @@ model Device {
   updatedAt DateTime @updatedAt
 
   @@index([uid])
-}
-
-
-model DeviceWidget {
-  id        Int      @id @default(autoincrement())
-  deviceId  Int
-  widgetId  Int
-  position  Int      @default(0)  // slot position/order
-  // Display data
-  x         Int      @default(0)   //  position
-  y         Int      @default(0)   // position
-  w         Int      @default(12)
-  h         Int      @default(12)
-  device    Device   @relation(fields: [deviceId], references: [id])
-  widget    Widget   @relation(fields: [widgetId], references: [id])
 }
 
 model Screen {
@@ -148,6 +94,8 @@ model Screen {
   width      Int          @default(800)
   height     Int          @default(480)
   isActive   Boolean      @default(true)
+  palette    String[]     @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
+  renderMode String       @default("ui")
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 

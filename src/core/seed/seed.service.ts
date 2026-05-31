@@ -2,7 +2,7 @@ import { PluginImportService } from '@modules/plugins/services/plugin-import.ser
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -16,19 +16,19 @@ export class SeedService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     if (process.env.SEED_ON_STARTUP === 'false') {
-      this.logger.log('🔧 Seeding disabled via SEED_ON_STARTUP=false');
+      this.logger.log('Seeding disabled via SEED_ON_STARTUP=false');
       return;
     }
 
     const userCount = await this.prisma.user.count();
     if (userCount > 0) {
-      this.logger.log('🔧 Database already seeded, skipping.');
+      this.logger.log('Database already seeded, skipping.');
       return;
     }
 
-    this.logger.log('🔧 Database empty — seeding...');
+    this.logger.log('Database empty — seeding...');
     await this.seed();
-    this.logger.log('🔧 Database seeded successfully');
+    this.logger.log('Database seeded successfully');
   }
 
   private async seed() {
@@ -38,14 +38,6 @@ export class SeedService implements OnApplicationBootstrap {
 
     const plugin = await this.downloadAndImportPlugin();
 
-    const widget = await this.prisma.widget.create({
-      data: {
-        name: 'Hello World Widget',
-        template: '<h1>Hello, World!</h1><p>Welcome to Zenso API.</p>',
-        userId: user.id,
-      },
-    });
-
     const device = await this.prisma.device.create({
       data: {
         name: 'Demo Device',
@@ -53,18 +45,6 @@ export class SeedService implements OnApplicationBootstrap {
         width: 800,
         height: 480,
         userId: user.id,
-      },
-    });
-
-    await this.prisma.deviceWidget.create({
-      data: {
-        deviceId: device.id,
-        widgetId: widget.id,
-        position: 0,
-        x: 0,
-        y: 0,
-        w: 12,
-        h: 12,
       },
     });
 
@@ -108,14 +88,14 @@ export class SeedService implements OnApplicationBootstrap {
   private async downloadAndImportPlugin() {
     const url = this.configService.get<string>('seed.pluginUrl')!;
 
-    this.logger.log(`📥 Downloading plugin from ${url}...`);
+    this.logger.log(`Downloading plugin from ${url}...`);
     const res = await fetch(url);
     if (!res.ok) {
-      throw new Error(`📥 Failed to download plugin: ${res.status} ${res.statusText}`);
+      throw new Error(`Failed to download plugin: ${res.status} ${res.statusText}`);
     }
     const arrayBuffer = await res.arrayBuffer();
     const zipBuffer = Buffer.from(arrayBuffer);
-    this.logger.log(`📥 Downloaded ${zipBuffer.length} bytes`);
+    this.logger.log(`Downloaded ${zipBuffer.length} bytes`);
 
     const result = await this.pluginImportService.importFromRegistryZip(
       zipBuffer,

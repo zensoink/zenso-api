@@ -1,8 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/plugins-debug/:slug/:version"
-method: GET
-pathVariables:
-  slug: string
-  version: string
-examples: ./.resources/Plugins Debug Controller get Manifest.resources/examples
-order: 1000

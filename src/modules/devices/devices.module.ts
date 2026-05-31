@@ -1,10 +1,10 @@
+import { RenderModule } from '@modules/render';
 import { Module } from '@nestjs/common';
 
-import { WidgetsModule } from '../widgets';
 import { DevicesController } from './devices.controller';
 
 @Module({
-  imports: [WidgetsModule],
+  imports: [RenderModule],
   controllers: [DevicesController],
 })
 export class DevicesModule {}

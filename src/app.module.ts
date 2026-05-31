@@ -9,7 +9,6 @@ import { PluginsModule } from '@modules/plugins';
 import { RenderModule } from '@modules/render';
 import { ScreensModule } from '@modules/screens';
 import { UsersModule } from '@modules/users';
-import { WidgetsModule } from '@modules/widgets';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
@@ -27,7 +26,6 @@ import { AppService } from './app.service';
     SeedModule,
     DevicesModule,
     UsersModule,
-    WidgetsModule,
     PluginsModule,
     RenderModule,
     ScreensModule,

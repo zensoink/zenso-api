@@ -1,5 +1,5 @@
 import { PrismaService } from '@core/prisma';
-import { WidgetsService } from '@modules/widgets/widgets.service';
+import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
 import {
   BadRequestException,
   Controller,
@@ -15,22 +15,13 @@ import {
 export class DevicesController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly widgetsService: WidgetsService
+    private readonly renderOrchestratorService: RenderOrchestratorService
   ) {}
 
   @Get(':uid/display')
   @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
-  async getDisplay(
-    @Param('uid') uid: string,
-    @Query('slot') slotParam?: string,
-    @Query('format') formatParam?: string
-  ): Promise<StreamableFile> {
-    const slotIndex = slotParam ? parseInt(slotParam, 10) : 0;
-    const format: 'png' | 'raw' = formatParam === 'png' ? 'png' : 'raw';
-
-    if (isNaN(slotIndex) || slotIndex < 0) {
-      throw new NotFoundException('Invalid slot index');
-    }
+  async getDisplay(@Param('uid') uid: string, @Query('format') formatParam?: string): Promise<StreamableFile> {
+    const format: 'preview' | 'device' = formatParam === 'png' ? 'preview' : 'device';
 
     if (formatParam && formatParam !== 'raw' && formatParam !== 'png') {
       throw new BadRequestException('Invalid format. Allowed values: raw, png');
@@ -39,9 +30,10 @@ export class DevicesController {
     const device = await this.prisma.device.findUnique({
       where: { uid },
       include: {
-        slots: {
-          include: { widget: true },
-          orderBy: { position: 'asc' },
+        screens: {
+          where: { isActive: true },
+          orderBy: { id: 'asc' },
+          take: 1,
         },
       },
     });
@@ -50,31 +42,18 @@ export class DevicesController {
       throw new NotFoundException('Device not found');
     }
 
-    if (!device.slots.length) {
-      throw new NotFoundException('No widgets configured for device');
+    const screen = device.screens[0];
+    if (!screen) {
+      throw new NotFoundException('No active screen configured for device');
     }
 
-    const slot = device.slots[slotIndex];
-    if (!slot) {
-      throw new NotFoundException(`Slot ${slotIndex} not found`);
-    }
-
-    const buffer = await this.widgetsService.renderWidget({
-      template: slot.widget.template,
-      width: device.width,
-      height: device.height,
-      data: {
-        deviceName: device.name,
-      },
-      palette: device.palette,
-      outputFormat: format,
-    });
+    const buffer = await (format === 'preview'
+      ? this.renderOrchestratorService.renderPreview(screen.id)
+      : this.renderOrchestratorService.renderForDevice(screen.id));
 
     return new StreamableFile(buffer, {
-      // 'image/raw' nie jest standardem. Użyj octet-stream dla surowych danych.
-      type: format === 'png' ? 'image/png' : 'application/octet-stream',
-      // Opcjonalnie możesz dodać nazwę pliku, co ułatwia debugowanie w przeglądarce
-      disposition: `attachment; filename="display.${format}"`,
+      type: format === 'preview' ? 'image/png' : 'application/octet-stream',
+      disposition: `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`,
     });
   }
 }

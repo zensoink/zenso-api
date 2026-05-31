@@ -1,7 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/plugins/registry/:pluginId/versions"
-method: GET
-pathVariables:
-  pluginId: string
-examples: ./.resources/Plugins Controller get Registry Plugin Versions.resources/examples
-order: 1000

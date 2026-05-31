@@ -1,9 +1,11 @@
-import { getWidgetTemplate, RenderEngineService } from '@modules/widgets/services/render-engine.service';
 import { Injectable } from '@nestjs/common';
+
+import { getWidgetTemplate } from '../templates/plugin-iframe.template';
+import { BrowserService } from './browser.service';
 
 @Injectable()
 export class HtmlToImageService {
-  constructor(private readonly renderEngineService: RenderEngineService) {}
+  constructor(private readonly browserService: BrowserService) {}
 
   async render(params: { html: string; width: number; height: number }): Promise<Buffer> {
     const fullHtml = getWidgetTemplate(params.html, {
@@ -11,6 +13,6 @@ export class HtmlToImageService {
       height: params.height,
     });
 
-    return this.renderEngineService.renderHtmlToPng(fullHtml, params.width, params.height);
+    return this.browserService.renderHtmlToPng(fullHtml, params.width, params.height);
   }
 }

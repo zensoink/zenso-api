@@ -1,8 +1,0 @@
-$kind: http-request
-url: "{{baseUrl}}/plugins-debug/ensure/:slug/:version"
-method: GET
-pathVariables:
-  slug: string
-  version: string
-examples: ./.resources/Plugins Debug Controller ensure.resources/examples
-order: 1000
