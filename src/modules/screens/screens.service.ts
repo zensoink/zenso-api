@@ -39,4 +39,11 @@ export class ScreensService {
       },
     });
   }
+
+  // TODO: invalidate contentHash on screen update
+  // When implementing update(), add:
+  //   await this.prisma.screen.update({
+  //     where: { id },
+  //     data: { contentHash: null },
+  //   });
 }

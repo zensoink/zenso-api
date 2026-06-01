@@ -81,6 +81,16 @@ export class DevicesController {
     res.set('Content-Type', format === 'preview' ? 'image/png' : 'application/octet-stream');
     res.set('Content-Disposition', `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`);
     res.status(200).send(buffer);
+
+    // Fire-and-forget: persist contentHash after successful delivery
+    this.prisma.screen
+      .update({
+        where: { id: screen.id },
+        data: { contentHash: contentKey },
+      })
+      .catch(() => {
+        // Log but don't fail the response
+      });
   }
 
   @Post(':uid/check-in')

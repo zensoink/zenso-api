@@ -37,7 +37,7 @@ export class ScreenSlotsService {
       }
     }
 
-    return this.prisma.screenSlot.create({
+    const slot = await this.prisma.screenSlot.create({
       data: {
         screenId,
         pluginInstanceId: dto.pluginInstanceId,
@@ -50,5 +50,13 @@ export class ScreenSlotsService {
         renderOrder: dto.renderOrder ?? 0,
       },
     });
+
+    // Invalidate contentHash so next check-in reports contentChanged: true
+    await this.prisma.screen.update({
+      where: { id: screenId },
+      data: { contentHash: null },
+    });
+
+    return slot;
   }
 }

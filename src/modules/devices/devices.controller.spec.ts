@@ -24,6 +24,9 @@ describe('DevicesController', () => {
     device: {
       findUnique: jest.Mock;
     };
+    screen: {
+      update: jest.Mock;
+    };
   };
   let mockRenderOrchestratorService: {
     renderPreview: jest.Mock;
@@ -55,6 +58,9 @@ describe('DevicesController', () => {
     mockPrismaService = {
       device: {
         findUnique: jest.fn(),
+      },
+      screen: {
+        update: jest.fn().mockResolvedValue({}),
       },
     };
 
@@ -257,6 +263,32 @@ describe('DevicesController', () => {
       await controller.getDisplay('device-123', res as never, undefined, undefined);
 
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'application/octet-stream');
+    });
+
+    // --- contentHash persistence tests ---
+
+    it('should persist contentHash in Prisma after 200 response', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res = mockExpressResponse();
+
+      await controller.getDisplay('device-123', res as never, 'png', undefined);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(mockPrismaService.screen.update).toHaveBeenCalledWith({
+        where: { id: mockDevice.screens[0].id },
+        data: { contentHash: MOCK_PNG_KEY },
+      });
+    });
+
+    it('should NOT persist contentHash after 304 response', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res = mockExpressResponse();
+      const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
+
+      await controller.getDisplay('device-123', res as never, 'png', etag);
+
+      expect(res.status).toHaveBeenCalledWith(304);
+      expect(mockPrismaService.screen.update).not.toHaveBeenCalled();
     });
   });
 });
