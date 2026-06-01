@@ -1,6 +1,4 @@
-import pluginsConfig from '@core/config/plugins.config';
-import registryConfig from '@core/config/registry.config';
-import seedConfig from '@core/config/seed.config';
+import { pluginsConfig, registryConfig, seedConfig } from '@core/config';
 import { PrismaModule } from '@core/prisma';
 import { SeedModule } from '@core/seed';
 import { DevicesModule } from '@modules/devices';

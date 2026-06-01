@@ -1,4 +1,4 @@
-import { PrismaService } from '@core/prisma/prisma.service';
+import { PrismaService } from '@core/prisma';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { CreateUserDTO } from './dto/create-user.dto';
