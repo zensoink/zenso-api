@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { PrismaService } from '@core/prisma';
 import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
 import {
@@ -5,13 +7,14 @@ import {
   Body,
   Controller,
   Get,
-  Header,
+  Headers,
   NotFoundException,
   Param,
   Post,
   Query,
-  StreamableFile,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
 import { DevicesService } from './devices.service';
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
@@ -25,9 +28,16 @@ export class DevicesController {
     private readonly devicesService: DevicesService
   ) {}
 
+  // Uses @Res() (no passthrough) for full manual response control:
+  // - 304 sends no body via res.status(304).end()
+  // - 200 sends the buffer via res.status(200).send(buffer)
   @Get(':uid/display')
-  @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
-  async getDisplay(@Param('uid') uid: string, @Query('format') formatParam?: string): Promise<StreamableFile> {
+  async getDisplay(
+    @Param('uid') uid: string,
+    @Res() res: Response,
+    @Query('format') formatParam?: string,
+    @Headers('if-none-match') ifNoneMatch?: string
+  ): Promise<void> {
     const format: 'preview' | 'device' = formatParam === 'png' ? 'preview' : 'device';
 
     if (formatParam && formatParam !== 'raw' && formatParam !== 'png') {
@@ -58,10 +68,21 @@ export class DevicesController {
       ? this.renderOrchestratorService.renderPreview(screen.id)
       : this.renderOrchestratorService.renderForDevice(screen.id));
 
-    return new StreamableFile(buffer, {
-      type: format === 'preview' ? 'image/png' : 'application/octet-stream',
-      disposition: `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`,
-    });
+    // Compute ETag: SHA-256 truncated to 32 hex chars (128 bits), quoted per HTTP spec
+    const etag = '"' + createHash('sha256').update(buffer).digest('hex').slice(0, 32) + '"';
+
+    res.set('Cache-Control', 'no-cache');
+    res.set('ETag', etag);
+
+    if (ifNoneMatch === etag) {
+      res.status(304).end();
+      return;
+    }
+
+    res.set('Last-Modified', new Date().toUTCString());
+    res.set('Content-Type', format === 'preview' ? 'image/png' : 'application/octet-stream');
+    res.set('Content-Disposition', `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`);
+    res.status(200).send(buffer);
   }
 
   @Post(':uid/check-in')
