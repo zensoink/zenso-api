@@ -59,4 +59,11 @@ export class ScreenSlotsService {
 
     return slot;
   }
+
+  // TODO: invalidate contentHash on slot delete
+  // When implementing delete(), add:
+  //   await this.prisma.screen.update({
+  //     where: { id: screenId },
+  //     data: { contentHash: null },
+  //   });
 }
