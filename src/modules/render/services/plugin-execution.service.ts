@@ -2,7 +2,7 @@ import { promises as fs, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { PrismaService } from '@core/prisma';
-import { PluginStorageService } from '@modules/plugins/services/plugin-storage.service';
+import { PluginStorageService } from '@modules/plugins';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Liquid } from 'liquidjs';
 

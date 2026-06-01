@@ -1,5 +1,5 @@
 import { PrismaService } from '@core/prisma';
-import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
+import { RenderOrchestratorService } from '@modules/render';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
