@@ -8,4 +8,5 @@ export class DeviceStatusResponseDto {
   palette: string[];
   renderMode: string;
   hasImage: boolean;
+  contentChanged: boolean;
 }

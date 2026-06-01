@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { RenderCacheService } from '@modules/render/services/render-cache.service';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -12,6 +13,9 @@ describe('DevicesService', () => {
       findUnique: jest.Mock;
       update: jest.Mock;
     };
+  };
+  let mockRenderCacheService: {
+    generateKey: jest.Mock;
   };
 
   const mockDevice = {
@@ -32,6 +36,10 @@ describe('DevicesService', () => {
     id: 10,
     name: 'Default Screen',
     isActive: true,
+    width: 800,
+    height: 480,
+    refreshRate: 600,
+    contentHash: null,
     palette: ['#111111', '#222222'],
     renderMode: 'bw',
     slots: [
@@ -46,6 +54,10 @@ describe('DevicesService', () => {
         h: 480,
         zIndex: 0,
         renderOrder: 0,
+        pluginInstance: {
+          configJson: null,
+          pluginVersion: null,
+        },
       },
     ],
   };
@@ -58,8 +70,16 @@ describe('DevicesService', () => {
       },
     };
 
+    mockRenderCacheService = {
+      generateKey: jest.fn().mockReturnValue('test-content-key'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [DevicesService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        DevicesService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: RenderCacheService, useValue: mockRenderCacheService },
+      ],
     }).compile();
 
     service = module.get<DevicesService>(DevicesService);
@@ -182,6 +202,67 @@ describe('DevicesService', () => {
       const result = await service.checkIn('device-123', {});
 
       expect(result.palette).toEqual(['#000000', '#ffffff']);
+    });
+
+    // --- contentChanged tests ---
+
+    it('should return contentChanged: true when screen.contentHash is null', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue({
+        ...mockDevice,
+        screens: [{ ...mockScreen, contentHash: null }],
+      });
+
+      const result = await service.checkIn('device-123', {});
+
+      expect(result.contentChanged).toBe(true);
+    });
+
+    it('should return contentChanged: true when screen.contentHash differs from current contentKey', async () => {
+      mockRenderCacheService.generateKey.mockReturnValue('current-key');
+      mockPrismaService.device.findUnique.mockResolvedValue({
+        ...mockDevice,
+        screens: [{ ...mockScreen, contentHash: 'old-key' }],
+      });
+
+      const result = await service.checkIn('device-123', {});
+
+      expect(result.contentChanged).toBe(true);
+    });
+
+    it('should return contentChanged: false when screen.contentHash matches current contentKey', async () => {
+      mockRenderCacheService.generateKey.mockReturnValue('matching-key');
+      mockPrismaService.device.findUnique.mockResolvedValue({
+        ...mockDevice,
+        screens: [{ ...mockScreen, contentHash: 'matching-key' }],
+      });
+
+      const result = await service.checkIn('device-123', {});
+
+      expect(result.contentChanged).toBe(false);
+    });
+
+    // --- refreshRate tests ---
+
+    it('should use screen.refreshRate when screen exists', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue({
+        ...mockDevice,
+        screens: [{ ...mockScreen, refreshRate: 600 }],
+      });
+
+      const result = await service.checkIn('device-123', {});
+
+      expect(result.refreshRate).toBe(600);
+    });
+
+    it('should fall back to refreshRate 300 when no screen', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue({
+        ...mockDevice,
+        screens: [],
+      });
+
+      const result = await service.checkIn('device-123', {});
+
+      expect(result.refreshRate).toBe(300);
     });
   });
 });

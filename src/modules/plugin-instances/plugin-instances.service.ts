@@ -44,4 +44,19 @@ export class PluginInstancesService {
     }
     return instance;
   }
+
+  // TODO: invalidate contentHash on plugin instance configJson update
+  // When implementing update(), find all ScreenSlots referencing this instance
+  // and set contentHash: null on their parent screens:
+  //   const slots = await this.prisma.screenSlot.findMany({
+  //     where: { pluginInstanceId: id },
+  //   });
+  //   await Promise.all(
+  //     slots.map(slot =>
+  //       this.prisma.screen.update({
+  //         where: { id: slot.screenId },
+  //         data: { contentHash: null },
+  //       }),
+  //     ),
+  //   );
 }

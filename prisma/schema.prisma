@@ -95,11 +95,13 @@ model Screen {
   layoutType String       @default("full")
   width      Int          @default(800)
   height     Int          @default(480)
-  isActive   Boolean      @default(true)
-  palette    String[]     @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
-  renderMode String       @default("ui")
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  isActive     Boolean      @default(true)
+  palette      String[]     @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
+  renderMode   String       @default("ui")
+  refreshRate  Int          @default(300)
+  contentHash  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   slots      ScreenSlot[]
 }

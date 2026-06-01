@@ -26,6 +26,6 @@ import { ScreenRenderService } from './services/screen-render.service';
     RenderOrchestratorService,
     RenderCacheService,
   ],
-  exports: [RenderOrchestratorService],
+  exports: [RenderOrchestratorService, RenderCacheService],
 })
 export class RenderModule {}
