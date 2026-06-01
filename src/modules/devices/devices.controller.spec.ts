@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import { PrismaService } from '@core/prisma';
 import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -8,6 +6,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesController } from './devices.controller';
 import { DevicesService } from './devices.service';
 
+const MOCK_PNG_KEY = 'abc123def456abc123def456abc123de';
+const MOCK_RAW_KEY = 'def789ghi012def789ghi012def789gh';
+
 function mockExpressResponse() {
   return {
     set: jest.fn().mockReturnThis(),
@@ -15,10 +16,6 @@ function mockExpressResponse() {
     send: jest.fn().mockReturnThis(),
     end: jest.fn().mockReturnThis(),
   };
-}
-
-function computeEtag(buffer: Buffer): string {
-  return '"' + createHash('sha256').update(buffer).digest('hex').slice(0, 32) + '"';
 }
 
 describe('DevicesController', () => {
@@ -49,6 +46,7 @@ describe('DevicesController', () => {
         id: 1,
         name: 'Default Screen',
         isActive: true,
+        updatedAt: new Date('2026-01-15T10:00:00Z'),
       },
     ],
   };
@@ -61,8 +59,8 @@ describe('DevicesController', () => {
     };
 
     mockRenderOrchestratorService = {
-      renderPreview: jest.fn().mockResolvedValue(Buffer.from('mock-png')),
-      renderForDevice: jest.fn().mockResolvedValue(Buffer.from('mock-raw')),
+      renderPreview: jest.fn().mockResolvedValue({ buffer: Buffer.from('mock-png'), contentKey: MOCK_PNG_KEY }),
+      renderForDevice: jest.fn().mockResolvedValue({ buffer: Buffer.from('mock-raw'), contentKey: MOCK_RAW_KEY }),
     };
 
     mockDevicesService = {
@@ -169,29 +167,42 @@ describe('DevicesController', () => {
       expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
     });
 
-    it('should return ETag header in 200 response', async () => {
+    it('should return ETag header derived from contentKey in 200 response', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
 
       await controller.getDisplay('device-123', res as never, 'png', undefined);
 
-      const expectedEtag = computeEtag(Buffer.from('mock-png'));
-      expect(res.set).toHaveBeenCalledWith('ETag', expectedEtag);
+      expect(res.set).toHaveBeenCalledWith('ETag', '"' + MOCK_PNG_KEY.slice(0, 32) + '"');
     });
 
-    it('should return Last-Modified header in 200 response', async () => {
+    it('should return Last-Modified header matching screen.updatedAt', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
 
       await controller.getDisplay('device-123', res as never, 'png', undefined);
 
-      expect(res.set).toHaveBeenCalledWith('Last-Modified', expect.any(String));
+      const expected = mockDevice.screens[0].updatedAt.toUTCString();
+      expect(res.set).toHaveBeenCalledWith('Last-Modified', expected);
+    });
+
+    it('should return same Last-Modified on consecutive requests with same content', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res1 = mockExpressResponse();
+      const res2 = mockExpressResponse();
+
+      await controller.getDisplay('device-123', res1 as never, 'png', undefined);
+      await controller.getDisplay('device-123', res2 as never, 'png', undefined);
+
+      const expected = mockDevice.screens[0].updatedAt.toUTCString();
+      expect(res1.set).toHaveBeenCalledWith('Last-Modified', expected);
+      expect(res2.set).toHaveBeenCalledWith('Last-Modified', expected);
     });
 
     it('should return 304 with no body when If-None-Match matches current ETag', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
-      const etag = computeEtag(Buffer.from('mock-png'));
+      const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
 
       await controller.getDisplay('device-123', res as never, 'png', etag);
 
@@ -204,7 +215,7 @@ describe('DevicesController', () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
 
-      await controller.getDisplay('device-123', res as never, 'png', '"different-etag-value"');
+      await controller.getDisplay('device-123', res as never, 'png', '"non-matching-etag"');
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
@@ -213,11 +224,10 @@ describe('DevicesController', () => {
     it('should include ETag header in 304 response', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
-      const etag = computeEtag(Buffer.from('mock-png'));
+      const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
 
       await controller.getDisplay('device-123', res as never, 'png', etag);
 
-      // ETag is set before the 304 short-circuit, so it should be present
       expect(res.set).toHaveBeenCalledWith('ETag', etag);
       expect(res.status).toHaveBeenCalledWith(304);
     });

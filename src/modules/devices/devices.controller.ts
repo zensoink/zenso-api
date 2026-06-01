@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import { PrismaService } from '@core/prisma';
 import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
 import {
@@ -64,12 +62,12 @@ export class DevicesController {
       throw new NotFoundException('No active screen configured for device');
     }
 
-    const buffer = await (format === 'preview'
+    const { buffer, contentKey = '' } = await (format === 'preview'
       ? this.renderOrchestratorService.renderPreview(screen.id)
       : this.renderOrchestratorService.renderForDevice(screen.id));
 
-    // Compute ETag: SHA-256 truncated to 32 hex chars (128 bits), quoted per HTTP spec
-    const etag = '"' + createHash('sha256').update(buffer).digest('hex').slice(0, 32) + '"';
+    // ETag: first 32 chars of the deterministic screen content cache key
+    const etag = '"' + contentKey.slice(0, 32) + '"';
 
     res.set('Cache-Control', 'no-cache');
     res.set('ETag', etag);
@@ -79,7 +77,7 @@ export class DevicesController {
       return;
     }
 
-    res.set('Last-Modified', new Date().toUTCString());
+    res.set('Last-Modified', screen.updatedAt.toUTCString());
     res.set('Content-Type', format === 'preview' ? 'image/png' : 'application/octet-stream');
     res.set('Content-Disposition', `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`);
     res.status(200).send(buffer);
