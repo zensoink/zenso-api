@@ -1,5 +1,5 @@
 import { PrismaService } from '@core/prisma';
-import { RenderCacheService } from '@modules/render/services/render-cache.service';
+import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
@@ -56,7 +56,7 @@ export class DevicesService {
 
     let contentChanged = false;
     if (screen) {
-      const slots = screen.slots.map(slot => ({
+      const slots: SlotRenderInput[] = screen.slots.map(slot => ({
         pluginInstanceId: slot.pluginInstanceId,
         pluginVersion: slot.pluginInstance?.pluginVersion?.version ?? null,
         configJson: slot.pluginInstance?.configJson,

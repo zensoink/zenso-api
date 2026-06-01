@@ -1,4 +1,4 @@
-import { PluginsModule } from '@modules/plugins/plugins.module';
+import { PluginsModule } from '@modules/plugins';
 import { Module } from '@nestjs/common';
 
 import { SeedService } from './seed.service';

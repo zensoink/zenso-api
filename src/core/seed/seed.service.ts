@@ -1,4 +1,4 @@
-import { PluginImportService } from '@modules/plugins/services/plugin-import.service';
+import { PluginImportService } from '@modules/plugins';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 

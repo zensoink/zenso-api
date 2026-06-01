@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 
+import { SlotRenderInput } from '../types/slot-render-input';
+
 interface CacheEntry {
   data: Buffer;
   expiresAt: number;
@@ -14,22 +16,13 @@ export class RenderCacheService {
     ? parseInt(process.env.RENDER_CACHE_TTL_MS, 10)
     : process.env.NODE_ENV === 'production'
       ? 3_600_000
-      : 1;
+      : 60_000;
 
   generateKey(
     screenId: number,
     screenWidth: number,
     screenHeight: number,
-    slots: Array<{
-      pluginInstanceId: number;
-      pluginVersion?: string | null;
-      configJson?: unknown;
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      zIndex: number;
-    }>,
+    slots: SlotRenderInput[],
     runtimeData?: Record<string, unknown>
   ): string {
     const payload = {

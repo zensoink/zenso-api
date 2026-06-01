@@ -1,5 +1,5 @@
 import { PrismaService } from '@core/prisma';
-import { RenderCacheService } from '@modules/render/services/render-cache.service';
+import { RenderCacheService } from '@modules/render';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 

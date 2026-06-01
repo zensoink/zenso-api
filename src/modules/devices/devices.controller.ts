@@ -1,11 +1,12 @@
 import { PrismaService } from '@core/prisma';
-import { RenderOrchestratorService } from '@modules/render/services/render-orchestrator.service';
+import { RenderOrchestratorService } from '@modules/render';
 import {
   BadRequestException,
   Body,
   Controller,
   Get,
   Headers,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -20,6 +21,8 @@ import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
 
 @Controller('devices')
 export class DevicesController {
+  private readonly logger = new Logger(DevicesController.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly renderOrchestratorService: RenderOrchestratorService,
@@ -62,17 +65,19 @@ export class DevicesController {
       throw new NotFoundException('No active screen configured for device');
     }
 
-    const { buffer, contentKey = '' } = await (format === 'preview'
+    const { buffer, contentKey } = await (format === 'preview'
       ? this.renderOrchestratorService.renderPreview(screen.id)
       : this.renderOrchestratorService.renderForDevice(screen.id));
 
-    // ETag: first 32 chars of the deterministic screen content cache key
-    const etag = '"' + contentKey.slice(0, 32) + '"';
+    const etag = contentKey ? '"' + contentKey.slice(0, 32) + '"' : null;
 
     res.set('Cache-Control', 'no-cache');
-    res.set('ETag', etag);
 
-    if (ifNoneMatch === etag) {
+    if (etag) {
+      res.set('ETag', etag);
+    }
+
+    if (etag && ifNoneMatch === etag) {
       res.status(304).end();
       return;
     }
@@ -88,8 +93,8 @@ export class DevicesController {
         where: { id: screen.id },
         data: { contentHash: contentKey },
       })
-      .catch(() => {
-        // Log but don't fail the response
+      .catch((err: unknown) => {
+        this.logger.error('Failed to persist contentHash', err);
       });
   }
 

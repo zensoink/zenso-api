@@ -30,7 +30,9 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
     try {
       await page.setViewport({ width, height, deviceScaleFactor: 1 });
       await page.goto(`data:text/html,${encodeURIComponent(html)}`);
-      await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
+      await page.waitForNetworkIdle({ timeout: 5000 }).catch((err: unknown) => {
+        this.logger.warn('Network idle timeout', err);
+      });
 
       const screenshot = await page.screenshot({
         type: 'png',
@@ -42,7 +44,9 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
       this.logger.error('HTML-to-PNG rendering error:', err);
       throw err;
     } finally {
-      await page.close().catch(() => {});
+      await page.close().catch((err: unknown) => {
+        this.logger.warn('Failed to close page', err);
+      });
     }
   }
 }
