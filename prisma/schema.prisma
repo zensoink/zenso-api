@@ -70,9 +70,11 @@ model Device {
   name      String
   width     Int      @default(800)
   height    Int      @default(480)
-  palette   String[] @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
+  palette         String[]  @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
+  lastSeenAt      DateTime?
+  firmwareVersion String?
 
-  screens   Screen[]
+  screens         Screen[]
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id])

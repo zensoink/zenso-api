@@ -5,6 +5,7 @@ import { StreamableFile } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { DevicesController } from './devices.controller';
+import { DevicesService } from './devices.service';
 
 describe('DevicesController', () => {
   let controller: DevicesController;
@@ -16,6 +17,9 @@ describe('DevicesController', () => {
   let mockRenderOrchestratorService: {
     renderPreview: jest.Mock;
     renderForDevice: jest.Mock;
+  };
+  let mockDevicesService: {
+    checkIn: jest.Mock;
   };
 
   const mockDevice = {
@@ -47,11 +51,16 @@ describe('DevicesController', () => {
       renderForDevice: jest.fn().mockResolvedValue(Buffer.from('mock-raw')),
     };
 
+    mockDevicesService = {
+      checkIn: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DevicesController],
       providers: [
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: RenderOrchestratorService, useValue: mockRenderOrchestratorService },
+        { provide: DevicesService, useValue: mockDevicesService },
       ],
     }).compile();
 
