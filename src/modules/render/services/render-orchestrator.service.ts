@@ -17,16 +17,24 @@ export class RenderOrchestratorService {
     private readonly epdImageService: EpdImageService
   ) {}
 
-  async renderPreview(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
-    const png = await this.buildScreenPng(screenId, runtimeData);
+  async renderPreview(
+    screenId: number,
+    runtimeData?: Record<string, unknown>
+  ): Promise<{ buffer: Buffer; contentKey: string }> {
+    const { png, cacheKey } = await this.buildScreenPng(screenId, runtimeData);
     const { width, height, palette, mode } = await this.getScreenRenderConfig(screenId);
-    return this.epdImageService.renderPreview({ input: png, width, height, palette, mode });
+    const buffer = await this.epdImageService.renderPreview({ input: png, width, height, palette, mode });
+    return { buffer, contentKey: cacheKey };
   }
 
-  async renderForDevice(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
-    const png = await this.buildScreenPng(screenId, runtimeData);
+  async renderForDevice(
+    screenId: number,
+    runtimeData?: Record<string, unknown>
+  ): Promise<{ buffer: Buffer; contentKey: string }> {
+    const { png, cacheKey } = await this.buildScreenPng(screenId, runtimeData);
     const { width, height, palette, mode } = await this.getScreenRenderConfig(screenId);
-    return this.epdImageService.renderForDevice({ input: png, width, height, palette, mode });
+    const buffer = await this.epdImageService.renderForDevice({ input: png, width, height, palette, mode });
+    return { buffer, contentKey: cacheKey };
   }
 
   private async getScreen(screenId: number) {
@@ -38,7 +46,10 @@ export class RenderOrchestratorService {
     return screen;
   }
 
-  private async buildScreenPng(screenId: number, runtimeData?: Record<string, unknown>): Promise<Buffer> {
+  private async buildScreenPng(
+    screenId: number,
+    runtimeData?: Record<string, unknown>
+  ): Promise<{ png: Buffer; cacheKey: string }> {
     const screen = await this.prisma.screen.findUnique({
       where: { id: screenId },
       include: {
@@ -73,7 +84,7 @@ export class RenderOrchestratorService {
     const cacheKey = this.renderCacheService.generateKey(screen.id, screen.width, screen.height, slots, runtimeData);
 
     const cached = this.renderCacheService.get(cacheKey);
-    if (cached) return cached;
+    if (cached) return { png: cached, cacheKey };
 
     if (screen.slots.length === 0) {
       const blank = await this.screenComposerService.compose({
@@ -82,7 +93,7 @@ export class RenderOrchestratorService {
         slots: [],
       });
       this.renderCacheService.set(cacheKey, blank);
-      return blank;
+      return { png: blank, cacheKey };
     }
 
     const renderedSlots = await this.screenRenderService.renderSlots(screenId, runtimeData);
@@ -95,7 +106,7 @@ export class RenderOrchestratorService {
 
     this.renderCacheService.set(cacheKey, png);
 
-    return png;
+    return { png, cacheKey };
   }
 
   private async getScreenRenderConfig(screenId: number): Promise<{

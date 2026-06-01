@@ -10,14 +10,14 @@ export class RenderController {
   @Post(':id/render/preview')
   @Header('Content-Type', 'image/png')
   async renderPreview(@Param('id', ParseIntPipe) id: number, @Body() dto?: RenderScreenDTO): Promise<StreamableFile> {
-    const png = await this.renderOrchestratorService.renderPreview(id, dto?.context);
+    const { buffer: png } = await this.renderOrchestratorService.renderPreview(id, dto?.context);
     return new StreamableFile(png);
   }
 
   @Post(':id/render/device')
   @Header('Content-Type', 'application/octet-stream')
   async renderForDevice(@Param('id', ParseIntPipe) id: number, @Body() dto?: RenderScreenDTO): Promise<StreamableFile> {
-    const raw = await this.renderOrchestratorService.renderForDevice(id, dto?.context);
+    const { buffer: raw } = await this.renderOrchestratorService.renderForDevice(id, dto?.context);
     return new StreamableFile(raw);
   }
 }
