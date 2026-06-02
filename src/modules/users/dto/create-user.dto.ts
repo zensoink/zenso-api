@@ -7,10 +7,10 @@ export class CreateUserDTO {
 
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(8)
   @IsNotEmpty()
-  password: string;
+  password!: string;
 }

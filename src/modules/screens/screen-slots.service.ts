@@ -1,8 +1,11 @@
 import { PrismaService } from '@core/prisma';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { z } from 'zod';
 
 import { CreateScreenSlotDTO } from './dto/create-screen-slot.dto';
-import { getLayoutSlots, LayoutType } from './layout-helper';
+import { getLayoutSlots } from './layout-helper';
+
+const LAYOUT_TYPE_SCHEMA = z.enum(['full', 'split-50-50', 'top-bottom', '2x2']);
 
 @Injectable()
 export class ScreenSlotsService {
@@ -27,7 +30,12 @@ export class ScreenSlotsService {
     let h = dto.h;
 
     if (x === undefined || y === undefined || w === undefined || h === undefined) {
-      const layoutSlots = getLayoutSlots(screen.layoutType as LayoutType, screen.width, screen.height);
+      const parsedLayoutType = LAYOUT_TYPE_SCHEMA.safeParse(screen.layoutType);
+      const layoutSlots = getLayoutSlots(
+        parsedLayoutType.success ? parsedLayoutType.data : 'full',
+        screen.width,
+        screen.height
+      );
       const layoutSlot = layoutSlots.find(s => s.slotKey === dto.slotKey);
       if (layoutSlot) {
         x ??= layoutSlot.x;

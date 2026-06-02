@@ -3,12 +3,13 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { z } from 'zod';
 
-import { PluginManifest } from '../interfaces/plugin-manifest';
+import { pluginManifestSchema } from '../interfaces/plugin-manifest.schema';
 @Injectable()
 export class PluginValidatorService {
   async validateExtractedPlugin(rootDir: string): Promise<{
-    manifest: PluginManifest;
+    manifest: z.infer<typeof pluginManifestSchema>;
     checksumSha256: string;
   }> {
     const manifestPath = path.join(rootDir, 'manifest.json');
@@ -20,11 +21,7 @@ export class PluginValidatorService {
     await this.assertNoForbiddenFiles(rootDir);
 
     const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
-    const manifest = JSON.parse(manifestRaw) as PluginManifest;
-
-    if (!manifest.id || !manifest.name || !manifest.schema_version || !manifest.core_min) {
-      throw new BadRequestException('Invalid manifest');
-    }
+    const manifest = pluginManifestSchema.parse(JSON.parse(manifestRaw));
 
     const checksumSha256 = await this.computeDirectoryChecksum(rootDir);
 

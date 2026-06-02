@@ -1,9 +1,9 @@
 export class CreatePluginInstanceDTO {
-  pluginId: number;
+  pluginId!: number;
   pluginVersionId?: number;
-  name: string;
+  name!: string;
   configJson?: Record<string, unknown>;
   executionMode?: string;
   isEnabled?: boolean;
-  userId: number;
+  userId!: number;
 }

@@ -1,5 +1,6 @@
 import { PrismaService } from '@core/prisma';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { z } from 'zod';
 
 export interface ZensoUserContext {
   id: string;
@@ -100,14 +101,35 @@ export class ContextAggregationService {
         },
       },
       manifest: {
-        id: (params.manifestJson?.['id'] as string) ?? null,
-        name: (params.manifestJson?.['name'] as string) ?? null,
+        id: z
+          .string()
+          .nullable()
+          .parse(params.manifestJson ?? null),
+        name: z
+          .string()
+          .nullable()
+          .parse(params.manifestJson?.['name'] ?? null),
         version: params.pluginVersion ?? null,
-        description: (params.manifestJson?.['description'] as string) ?? null,
-        thumbnail: (params.manifestJson?.['thumbnail'] as string) ?? null,
-        author: (params.manifestJson?.['author'] as Record<string, unknown>) ?? null,
-        license: (params.manifestJson?.['license'] as string) ?? null,
-        coreMin: (params.manifestJson?.['core_min'] as string) ?? null,
+        description: z
+          .string()
+          .nullable()
+          .parse(params.manifestJson?.['description'] ?? null),
+        thumbnail: z
+          .string()
+          .nullable()
+          .parse(params.manifestJson?.['thumbnail'] ?? null),
+        author: z
+          .record(z.string(), z.unknown())
+          .nullable()
+          .parse(params.manifestJson?.['author'] ?? null),
+        license: z
+          .string()
+          .nullable()
+          .parse(params.manifestJson?.['license'] ?? null),
+        coreMin: z
+          .string()
+          .nullable()
+          .parse(params.manifestJson?.['core_min'] ?? null),
       },
       config: params.configJson ?? {},
       ...params.runtimeData,

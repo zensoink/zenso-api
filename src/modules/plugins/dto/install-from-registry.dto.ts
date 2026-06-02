@@ -1,4 +1,4 @@
 export class InstallFromRegistryDTO {
-  pluginId: string;
+  pluginId!: string;
   version?: string;
 }

@@ -4,7 +4,11 @@ import * as path from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { PluginManifest } from '../interfaces/plugin-manifest';
+import { pluginManifestSchema } from '../interfaces/plugin-manifest.schema';
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
 
 @Injectable()
 export class PluginStorageService {
@@ -59,7 +63,7 @@ export class PluginStorageService {
     }
   }
 
-  async readManifest(slug: string, version: string): Promise<PluginManifest> {
+  async readManifest(slug: string, version: string) {
     const manifestPath = this.getManifestPath(slug, version);
     const exists = await this.pathExists(manifestPath);
 
@@ -68,7 +72,7 @@ export class PluginStorageService {
     }
 
     const raw = await fs.readFile(manifestPath, 'utf-8');
-    return JSON.parse(raw) as PluginManifest;
+    return pluginManifestSchema.parse(JSON.parse(raw));
   }
 
   async moveExtractedPluginToVersionPath(extractedDir: string, slug: string, version: string): Promise<void> {
@@ -80,9 +84,7 @@ export class PluginStorageService {
     try {
       await fs.rename(extractedDir, targetDir);
     } catch (error: unknown) {
-      const err = error as NodeJS.ErrnoException;
-
-      if (err.code !== 'EXDEV') {
+      if (!isErrnoException(error) || error.code !== 'EXDEV') {
         throw error;
       }
 

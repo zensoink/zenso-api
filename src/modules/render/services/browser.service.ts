@@ -3,7 +3,7 @@ import puppeteer, { Browser } from 'puppeteer';
 
 @Injectable()
 export class BrowserService implements OnModuleInit, OnModuleDestroy {
-  private browser: Browser;
+  private browser!: Browser;
 
   private readonly logger = new Logger(BrowserService.name);
 
