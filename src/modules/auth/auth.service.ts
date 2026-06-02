@@ -43,8 +43,8 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('auth.userSecret'),
-      expiresIn: this.configService.get<string>('auth.userExpiresIn'),
+      secret: this.configService.getOrThrow<string>('auth.userSecret'),
+      expiresIn: this.configService.getOrThrow<number>('auth.userExpiresIn'),
     });
 
     return { accessToken };
@@ -84,8 +84,8 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('auth.deviceSecret'),
-      expiresIn: this.configService.get<string>('auth.deviceExpiresIn'),
+      secret: this.configService.getOrThrow<string>('auth.deviceSecret'),
+      expiresIn: this.configService.getOrThrow<number>('auth.deviceExpiresIn'),
     });
 
     return { accessToken };

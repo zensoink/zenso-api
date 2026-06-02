@@ -14,7 +14,7 @@ export class DeviceJwtStrategy extends PassportStrategy(Strategy, 'device-jwt') 
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: configService.get<string>('auth.deviceSecret'),
+      secretOrKey: configService.getOrThrow<string>('auth.deviceSecret'),
     });
   }
 

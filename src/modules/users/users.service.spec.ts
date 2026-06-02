@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
-
 import { PrismaService } from '@core/prisma';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
@@ -7,11 +5,32 @@ import * as bcrypt from 'bcrypt';
 import { CreateUserDTO } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 
+interface CreateUserData {
+  email: string;
+  name: string | null;
+  passwordHash: string;
+}
+
+type ExpectedUser = {
+  id: number;
+  name: string;
+  email: string;
+  passwordHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+interface MockPrismaService {
+  user: {
+    create: jest.Mock<Promise<ExpectedUser>, [{ data: CreateUserData }]>;
+  };
+}
+
 describe('UsersService', () => {
   let service: UsersService;
-  let mockPrismaService: jest.Mocked<PrismaService>;
+  let mockPrismaService: MockPrismaService;
 
-  const expectedUser = {
+  const expectedUser: ExpectedUser = {
     id: 1,
     name: 'John Doe',
     email: 'john@example.com',
@@ -23,9 +42,9 @@ describe('UsersService', () => {
   beforeEach(async () => {
     mockPrismaService = {
       user: {
-        create: jest.fn().mockResolvedValue(expectedUser),
+        create: jest.fn<Promise<ExpectedUser>, [{ data: CreateUserData }]>().mockResolvedValue(expectedUser),
       },
-    } as unknown as jest.Mocked<PrismaService>;
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -55,13 +74,13 @@ describe('UsersService', () => {
 
     expect(result).toEqual(expectedUser);
 
-    const createCall = mockPrismaService.user.create.mock.calls[0][0];
-    expect(createCall.data.email).toBe('john@example.com');
-    expect(createCall.data.name).toBe('John Doe');
-    expect(createCall.data.passwordHash).toBeDefined();
-    expect(createCall.data.passwordHash).not.toBe('plaintext-password-123');
+    const { data } = mockPrismaService.user.create.mock.calls[0][0];
+    expect(data.email).toBe('john@example.com');
+    expect(data.name).toBe('John Doe');
+    expect(data.passwordHash).toBeDefined();
+    expect(data.passwordHash).not.toBe('plaintext-password-123');
 
-    const isHash = await bcrypt.compare('plaintext-password-123', createCall.data.passwordHash);
+    const isHash = await bcrypt.compare('plaintext-password-123', data.passwordHash);
     expect(isHash).toBe(true);
   });
 
@@ -73,7 +92,7 @@ describe('UsersService', () => {
 
     await service.createUser(createUserDto);
 
-    const createCall = mockPrismaService.user.create.mock.calls[0][0];
-    expect(createCall.data.name).toBeNull();
+    const { data } = mockPrismaService.user.create.mock.calls[0][0];
+    expect(data.name).toBeNull();
   });
 });

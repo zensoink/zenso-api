@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method */
-
 import { PrismaService } from '@core/prisma';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -8,17 +6,26 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { AuthService } from './auth.service';
 
-const mockBcryptCompare: jest.Mock<Promise<boolean>, [string, string]> = jest.fn();
+const mockBcryptCompare = jest.fn<Promise<boolean>, [string, string]>();
 
 jest.mock('bcrypt', () => ({
   compare: (...args: [string, string]) => mockBcryptCompare(...args),
   hash: jest.fn().mockResolvedValue('$2b$10$mockedhash'),
 }));
 
+interface MockPrisma {
+  user: { findUnique: jest.Mock };
+  device: { findUnique: jest.Mock };
+}
+
+interface MockJwt {
+  sign: jest.Mock;
+}
+
 describe('AuthService', () => {
   let service: AuthService;
-  let mockPrismaService: jest.Mocked<PrismaService>;
-  let mockJwtService: jest.Mocked<JwtService>;
+  let mockPrismaService: MockPrisma;
+  let mockJwtService: MockJwt;
 
   const mockUser = {
     id: 1,
@@ -48,17 +55,13 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     mockPrismaService = {
-      user: {
-        findUnique: jest.fn(),
-      },
-      device: {
-        findUnique: jest.fn(),
-      },
-    } as unknown as jest.Mocked<PrismaService>;
+      user: { findUnique: jest.fn() },
+      device: { findUnique: jest.fn() },
+    };
 
     mockJwtService = {
       sign: jest.fn().mockReturnValue('mock-access-token'),
-    } as unknown as jest.Mocked<JwtService>;
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -82,6 +85,13 @@ describe('AuthService', () => {
                 'auth.deviceExpiresIn': '1h',
               };
               return config[key];
+            }),
+            getOrThrow: jest.fn((key: string) => {
+              if (key === 'auth.userExpiresIn') return 3600;
+              if (key === 'auth.deviceExpiresIn') return 3600;
+              if (key === 'auth.userSecret') return 'test-user-secret';
+              if (key === 'auth.deviceSecret') return 'test-device-secret';
+              throw new Error(`Config key "${key}" not found`);
             }),
           },
         },
@@ -136,7 +146,7 @@ describe('AuthService', () => {
         { sub: mockUser.id, email: mockUser.email, type: 'user' },
         expect.objectContaining({
           secret: 'test-user-secret',
-          expiresIn: '1h',
+          expiresIn: 3600,
         })
       );
     });
@@ -211,7 +221,7 @@ describe('AuthService', () => {
         },
         expect.objectContaining({
           secret: 'test-device-secret',
-          expiresIn: '1h',
+          expiresIn: 3600,
         })
       );
     });

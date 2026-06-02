@@ -2,6 +2,12 @@ import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/com
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 
+function assertHasUid(value: unknown): asserts value is { uid: string } {
+  if (typeof value !== 'object' || value === null || !('uid' in value)) {
+    throw new UnauthorizedException('Invalid device user object');
+  }
+}
+
 @Injectable()
 export class DeviceJwtAuthGuard extends AuthGuard('device-jwt') {
   handleRequest<TUser = any>(err: Error | null, user: TUser, info: any, context: ExecutionContext): TUser {
@@ -11,10 +17,12 @@ export class DeviceJwtAuthGuard extends AuthGuard('device-jwt') {
 
     const request = context.switchToHttp().getRequest<Request>();
     const uid = request.params?.uid;
-    const userRecord = user as { uid: string };
 
-    if (uid && userRecord.uid !== uid) {
-      throw new UnauthorizedException('Device UID mismatch');
+    if (uid) {
+      assertHasUid(user);
+      if (user.uid !== uid) {
+        throw new UnauthorizedException('Device UID mismatch');
+      }
     }
 
     return user;

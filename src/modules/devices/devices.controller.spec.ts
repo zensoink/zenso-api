@@ -200,6 +200,19 @@ describe('DevicesController', () => {
       expect(res.set).toHaveBeenCalledWith('Last-Modified', expected);
     });
 
+    it('should return same Last-Modified on consecutive requests with same content', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res1 = mockExpressResponse();
+      const res2 = mockExpressResponse();
+
+      await controller.getDisplay('device-123', res1 as never, 'png', undefined);
+      await controller.getDisplay('device-123', res2 as never, 'png', undefined);
+
+      const expected = mockDevice.screens[0].updatedAt.toUTCString();
+      expect(res1.set).toHaveBeenCalledWith('Last-Modified', expected);
+      expect(res2.set).toHaveBeenCalledWith('Last-Modified', expected);
+    });
+
     it('should return 304 with no body when If-None-Match matches current ETag', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
@@ -220,6 +233,17 @@ describe('DevicesController', () => {
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
+    });
+
+    it('should include ETag header in 304 response', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res = mockExpressResponse();
+      const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
+
+      await controller.getDisplay('device-123', res as never, 'png', etag);
+
+      expect(res.set).toHaveBeenCalledWith('ETag', etag);
+      expect(res.status).toHaveBeenCalledWith(304);
     });
 
     it('should set Content-Type to image/png when format=png', async () => {

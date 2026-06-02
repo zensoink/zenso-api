@@ -74,6 +74,20 @@ import { CreateUserDTO } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 ```
 
+### TypeScript Typing Rules
+
+- **No `as` type assertions in production code.** This includes `as Type`, `as unknown as Type`, and double assertions.
+- **No angle-bracket type assertions** (`<Type>value`) in production code.
+- **Tests may use type assertions sparingly** when mocks or weakly typed libraries make it impractical to avoid them. Typed helpers are preferred.
+- Prefer instead:
+  - Explicit variable types and function return types
+  - Typed helper functions that return the expected type
+  - Type guards with `asserts` keyword
+  - Runtime transformation functions
+  - `satisfies` for compile-time validation of known values
+- **`as const` is allowed** only for literal narrowing when no better alternative exists.
+- Treat new type assertions as a code smell that requires justification in review.
+
 ### Naming Conventions
 
 | Type      | Convention      | Example                         |

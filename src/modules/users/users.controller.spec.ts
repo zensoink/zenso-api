@@ -31,6 +31,7 @@ describe('UsersController', () => {
     const createUserDto = {
       name: 'John Doe',
       email: 'john@example.com',
+      password: 'password123',
     };
 
     const expectedUser = {

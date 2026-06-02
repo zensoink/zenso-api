@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method */
-
 import type { INestApplication } from '@nestjs/common';
 import { UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -9,9 +7,24 @@ import type { App } from 'supertest/types';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
+interface MockAuthService {
+  login: jest.Mock;
+  deviceLogin: jest.Mock;
+  validateUser: jest.Mock;
+  validateDevice: jest.Mock;
+}
+
+function asAccessTokenResponse(body: unknown): { accessToken: string } {
+  return body as { accessToken: string };
+}
+
+function asMessageResponse(body: unknown): { message: unknown } {
+  return body as { message: unknown };
+}
+
 describe('AuthController', () => {
   let app: INestApplication<App>;
-  let mockAuthService: jest.Mocked<AuthService>;
+  let mockAuthService: MockAuthService;
 
   beforeEach(async () => {
     mockAuthService = {
@@ -19,7 +32,7 @@ describe('AuthController', () => {
       deviceLogin: jest.fn(),
       validateUser: jest.fn(),
       validateDevice: jest.fn(),
-    } as unknown as jest.Mocked<AuthService>;
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -49,7 +62,8 @@ describe('AuthController', () => {
         .send({ email: 'test@example.com', password: 'password123' })
         .expect(200);
 
-      expect(res.body).toEqual({ accessToken: 'mock-token' });
+      const body = asAccessTokenResponse(res.body);
+      expect(body).toEqual({ accessToken: 'mock-token' });
       expect(mockAuthService.login).toHaveBeenCalledWith('test@example.com', 'password123');
     });
 
@@ -61,13 +75,15 @@ describe('AuthController', () => {
         .send({ email: 'test@example.com', password: 'wrong-password' })
         .expect(401);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
 
     it('should return 400 when email is missing', async () => {
       const res = await request(app.getHttpServer()).post('/auth/login').send({ password: 'password123' }).expect(400);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
 
     it('should return 400 when email is not a valid email', async () => {
@@ -76,7 +92,8 @@ describe('AuthController', () => {
         .send({ email: 'not-an-email', password: 'password123' })
         .expect(400);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
 
     it('should return 400 when password is missing', async () => {
@@ -85,7 +102,8 @@ describe('AuthController', () => {
         .send({ email: 'test@example.com' })
         .expect(400);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
   });
 
@@ -98,7 +116,8 @@ describe('AuthController', () => {
         .send({ uid: 'device-001', secret: 'valid-secret' })
         .expect(200);
 
-      expect(res.body).toEqual({ accessToken: 'mock-device-token' });
+      const body = asAccessTokenResponse(res.body);
+      expect(body).toEqual({ accessToken: 'mock-device-token' });
       expect(mockAuthService.deviceLogin).toHaveBeenCalledWith('device-001', 'valid-secret');
     });
 
@@ -110,7 +129,8 @@ describe('AuthController', () => {
         .send({ uid: 'device-001', secret: 'wrong-secret' })
         .expect(401);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
 
     it('should return 400 when uid is missing', async () => {
@@ -119,13 +139,15 @@ describe('AuthController', () => {
         .send({ secret: 'valid-secret' })
         .expect(400);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
 
     it('should return 400 when secret is missing', async () => {
       const res = await request(app.getHttpServer()).post('/auth/device/login').send({ uid: 'device-001' }).expect(400);
 
-      expect(res.body.message).toBeDefined();
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
     });
   });
 });
