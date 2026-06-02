@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { UserJwtAuthGuard } from '@modules/auth';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { CreatePluginInstanceDTO } from './dto/create-plugin-instance.dto';
 import { UpdatePluginInstanceDTO } from './dto/update-plugin-instance.dto';
 import { PluginInstancesService } from './plugin-instances.service';
 
 @Controller('plugin-instances')
+@UseGuards(UserJwtAuthGuard)
 export class PluginInstancesController {
   constructor(private readonly pluginInstancesService: PluginInstancesService) {}
 

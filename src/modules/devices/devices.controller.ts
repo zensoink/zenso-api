@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { DeviceJwtAuthGuard, UserJwtAuthGuard } from '@modules/auth';
 import { RenderOrchestratorService } from '@modules/render';
 import {
   BadRequestException,
@@ -9,9 +10,11 @@ import {
   Logger,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Post,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 
@@ -33,6 +36,7 @@ export class DevicesController {
   // - 304 sends no body via res.status(304).end()
   // - 200 sends the buffer via res.status(200).send(buffer)
   @Get(':uid/display')
+  @UseGuards(DeviceJwtAuthGuard)
   async getDisplay(
     @Param('uid') uid: string,
     @Res() res: Response,
@@ -99,7 +103,14 @@ export class DevicesController {
   }
 
   @Post(':uid/check-in')
+  @UseGuards(DeviceJwtAuthGuard)
   async checkIn(@Param('uid') uid: string, @Body() dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
     return this.devicesService.checkIn(uid, dto);
+  }
+
+  @Post(':id/rotate-secret')
+  @UseGuards(UserJwtAuthGuard)
+  async rotateSecret(@Param('id', ParseIntPipe) id: number) {
+    return this.devicesService.rotateSecret(id);
   }
 }

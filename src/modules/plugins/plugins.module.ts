@@ -1,3 +1,4 @@
+import { AuthModule } from '@modules/auth';
 import { Module } from '@nestjs/common';
 
 import {
@@ -15,6 +16,7 @@ import { PluginsService } from './services/plugins.service';
 import { RegistryClient } from './services/registry-client.service';
 
 @Module({
+  imports: [AuthModule],
   providers: [
     PluginsService,
     PluginStorageService,

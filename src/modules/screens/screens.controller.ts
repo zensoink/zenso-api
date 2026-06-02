@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { UserJwtAuthGuard } from '@modules/auth';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { CreateScreenDTO } from './dto/create-screen.dto';
 import { CreateScreenSlotDTO } from './dto/create-screen-slot.dto';
@@ -7,6 +8,7 @@ import { ScreenSlotsService } from './screen-slots.service';
 import { ScreensService } from './screens.service';
 
 @Controller('screens')
+@UseGuards(UserJwtAuthGuard)
 export class ScreensController {
   constructor(
     private readonly screensService: ScreensService,

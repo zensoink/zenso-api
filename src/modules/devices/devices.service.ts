@@ -1,6 +1,8 @@
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
 import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
@@ -82,5 +84,26 @@ export class DevicesService {
       hasImage: screen != null && screen.slots.length > 0,
       contentChanged,
     };
+  }
+
+  async rotateSecret(id: number) {
+    const device = await this.prisma.device.findUnique({ where: { id } });
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const rawSecret = crypto.randomBytes(32).toString('hex');
+    const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
+
+    await this.prisma.device.update({
+      where: { id },
+      data: {
+        deviceSecretHash,
+        deviceTokenVersion: { increment: 1 },
+      },
+    });
+
+    return { id, rawSecret };
   }
 }

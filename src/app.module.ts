@@ -1,6 +1,7 @@
-import { pluginsConfig, registryConfig, seedConfig } from '@core/config';
+import { authConfig, pluginsConfig, registryConfig, seedConfig } from '@core/config';
 import { PrismaModule } from '@core/prisma';
 import { SeedModule } from '@core/seed';
+import { AuthModule } from '@modules/auth';
 import { DevicesModule } from '@modules/devices';
 import { PluginInstancesModule } from '@modules/plugin-instances';
 import { PluginsModule } from '@modules/plugins';
@@ -17,11 +18,12 @@ import { AppService } from './app.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [pluginsConfig, registryConfig, seedConfig],
+      load: [authConfig, pluginsConfig, registryConfig, seedConfig],
       envFilePath: '.env',
     }),
     PrismaModule,
     SeedModule,
+    AuthModule,
     DevicesModule,
     UsersModule,
     PluginsModule,

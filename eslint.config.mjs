@@ -43,7 +43,33 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
+    },
+  },
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression:not([typeAnnotation.typeName.name="const"])',
+          message:
+            'Type assertions using "as" are not allowed in production code. Use explicit typing, a type guard, a typed helper, or satisfies.',
+        },
+        {
+          selector: 'TSTypeAssertion',
+          message:
+            'Angle-bracket type assertions are not allowed in production code. Use explicit typing, a type guard, a typed helper, or satisfies.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/*.spec.ts', '**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/consistent-type-assertions': ['warn', { assertionStyle: 'never' }],
     },
   }
 );

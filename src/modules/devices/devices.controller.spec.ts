@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { DeviceJwtAuthGuard, UserJwtAuthGuard } from '@modules/auth';
 import { RenderOrchestratorService } from '@modules/render';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -34,6 +35,7 @@ describe('DevicesController', () => {
   };
   let mockDevicesService: {
     checkIn: jest.Mock;
+    rotateSecret: jest.Mock;
   };
 
   const mockDevice = {
@@ -71,6 +73,7 @@ describe('DevicesController', () => {
 
     mockDevicesService = {
       checkIn: jest.fn(),
+      rotateSecret: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -80,7 +83,12 @@ describe('DevicesController', () => {
         { provide: RenderOrchestratorService, useValue: mockRenderOrchestratorService },
         { provide: DevicesService, useValue: mockDevicesService },
       ],
-    }).compile();
+    })
+      .overrideGuard(DeviceJwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(UserJwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DevicesController>(DevicesController);
   });
@@ -256,13 +264,22 @@ describe('DevicesController', () => {
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'application/octet-stream');
     });
 
-    it('should set Content-Type to application/octet-stream when no format param', async () => {
+    it('should set Content-Disposition header correctly for png', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
 
-      await controller.getDisplay('device-123', res as never, undefined, undefined);
+      await controller.getDisplay('device-123', res as never, 'png', undefined);
 
-      expect(res.set).toHaveBeenCalledWith('Content-Type', 'application/octet-stream');
+      expect(res.set).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="display.png"');
+    });
+
+    it('should set Content-Disposition header correctly for raw', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res = mockExpressResponse();
+
+      await controller.getDisplay('device-123', res as never, 'raw', undefined);
+
+      expect(res.set).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="display.raw"');
     });
 
     // --- contentHash persistence tests ---
@@ -289,6 +306,29 @@ describe('DevicesController', () => {
 
       expect(res.status).toHaveBeenCalledWith(304);
       expect(mockPrismaService.screen.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkIn', () => {
+    it('should call devicesService.checkIn with uid and body', async () => {
+      const dto = { firmwareVersion: '1.0.0' };
+      mockDevicesService.checkIn.mockResolvedValue({ uid: 'device-123', contentChanged: false });
+
+      const result = await controller.checkIn('device-123', dto);
+
+      expect(mockDevicesService.checkIn).toHaveBeenCalledWith('device-123', dto);
+      expect(result).toEqual({ uid: 'device-123', contentChanged: false });
+    });
+  });
+
+  describe('rotateSecret', () => {
+    it('should call devicesService.rotateSecret with device id', async () => {
+      mockDevicesService.rotateSecret.mockResolvedValue({ id: 1, rawSecret: 'new-secret' });
+
+      const result = await controller.rotateSecret(1);
+
+      expect(mockDevicesService.rotateSecret).toHaveBeenCalledWith(1);
+      expect(result).toEqual({ id: 1, rawSecret: 'new-secret' });
     });
   });
 });
