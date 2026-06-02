@@ -42,6 +42,7 @@ export class AuthService {
       type: 'user',
     };
 
+    // Secret passed explicitly — user and device tokens use different secrets.
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('auth.userSecret'),
       expiresIn: this.configService.getOrThrow<number>('auth.userExpiresIn'),
@@ -83,6 +84,7 @@ export class AuthService {
       tokenVersion: device.deviceTokenVersion,
     };
 
+    // Secret passed explicitly — user and device tokens use different secrets.
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('auth.deviceSecret'),
       expiresIn: this.configService.getOrThrow<number>('auth.deviceExpiresIn'),

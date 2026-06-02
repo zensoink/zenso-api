@@ -11,7 +11,16 @@ import { DeviceJwtStrategy } from './strategies/device-jwt.strategy';
 import { UserJwtStrategy } from './strategies/user-jwt.strategy';
 
 @Module({
-  imports: [PrismaModule, PassportModule, JwtModule.register({})],
+  imports: [
+    PrismaModule,
+    PassportModule,
+    JwtModule.register({
+      // Secrets are intentionally NOT set here.
+      // This module signs two token types (user, device) with different secrets.
+      // Secret and expiresIn are passed explicitly in AuthService per token type.
+      signOptions: { algorithm: 'HS256' },
+    }),
+  ],
   controllers: [AuthController],
   providers: [AuthService, UserJwtStrategy, DeviceJwtStrategy, UserJwtAuthGuard, DeviceJwtAuthGuard],
   exports: [UserJwtAuthGuard, DeviceJwtAuthGuard],
