@@ -7,12 +7,15 @@ import { ScreenSlotsService } from './screen-slots.service';
 describe('ScreenSlotsService', () => {
   let service: ScreenSlotsService;
   let mockPrismaService: {
+    $transaction: jest.Mock;
     screen: {
       findUnique: jest.Mock;
       update: jest.Mock;
     };
     screenSlot: {
+      findUnique: jest.Mock;
       create: jest.Mock;
+      delete: jest.Mock;
     };
     pluginInstance: {
       findUnique: jest.Mock;
@@ -34,12 +37,15 @@ describe('ScreenSlotsService', () => {
 
   beforeEach(async () => {
     mockPrismaService = {
+      $transaction: jest.fn(),
       screen: {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
       screenSlot: {
+        findUnique: jest.fn(),
         create: jest.fn(),
+        delete: jest.fn(),
       },
       pluginInstance: {
         findUnique: jest.fn(),
@@ -112,6 +118,43 @@ describe('ScreenSlotsService', () => {
       mockPrismaService.screen.findUnique.mockResolvedValue(null);
 
       await expect(service.create(999, { pluginInstanceId: 10, slotKey: 'A' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('delete', () => {
+    const mockSlot = {
+      id: 5,
+      screenId: 1,
+      pluginInstanceId: 10,
+      slotKey: 'A',
+    };
+
+    it('deletes slot and invalidates parent screen contentHash', async () => {
+      mockPrismaService.screenSlot.findUnique.mockResolvedValue(mockSlot);
+      mockPrismaService.$transaction.mockResolvedValue([undefined, undefined]);
+
+      await service.delete(1, 5);
+
+      expect(mockPrismaService.screenSlot.findUnique).toHaveBeenCalledWith({ where: { id: 5 } });
+      expect(mockPrismaService.$transaction).toHaveBeenCalledWith([
+        mockPrismaService.screenSlot.delete({ where: { id: 5 } }),
+        mockPrismaService.screen.update({
+          where: { id: 1 },
+          data: { contentHash: null },
+        }),
+      ]);
+    });
+
+    it('throws NotFoundException when slot does not exist', async () => {
+      mockPrismaService.screenSlot.findUnique.mockResolvedValue(null);
+
+      await expect(service.delete(1, 999)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when slot does not belong to screen', async () => {
+      mockPrismaService.screenSlot.findUnique.mockResolvedValue({ ...mockSlot, screenId: 2 });
+
+      await expect(service.delete(1, 5)).rejects.toThrow(NotFoundException);
     });
   });
 });

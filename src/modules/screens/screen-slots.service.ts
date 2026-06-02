@@ -60,10 +60,20 @@ export class ScreenSlotsService {
     return slot;
   }
 
-  // TODO: invalidate contentHash on slot delete
-  // When implementing delete(), add:
-  //   await this.prisma.screen.update({
-  //     where: { id: screenId },
-  //     data: { contentHash: null },
-  //   });
+  async delete(screenId: number, slotId: number) {
+    const slot = await this.prisma.screenSlot.findUnique({
+      where: { id: slotId },
+    });
+    if (!slot || slot.screenId !== screenId) {
+      throw new NotFoundException('ScreenSlot not found');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.screenSlot.delete({ where: { id: slotId } }),
+      this.prisma.screen.update({
+        where: { id: screenId },
+        data: { contentHash: null },
+      }),
+    ]);
+  }
 }

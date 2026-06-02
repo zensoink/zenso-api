@@ -1,7 +1,8 @@
 import { PrismaService } from '@core/prisma';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CreateScreenDTO } from './dto/create-screen.dto';
+import { UpdateScreenDTO } from './dto/update-screen.dto';
 
 @Injectable()
 export class ScreensService {
@@ -40,10 +41,24 @@ export class ScreensService {
     });
   }
 
-  // TODO: invalidate contentHash on screen update
-  // When implementing update(), add:
-  //   await this.prisma.screen.update({
-  //     where: { id },
-  //     data: { contentHash: null },
-  //   });
+  async update(id: number, dto: UpdateScreenDTO) {
+    const existing = await this.prisma.screen.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Screen not found');
+    }
+
+    return this.prisma.screen.update({
+      where: { id },
+      data: { ...dto, contentHash: null },
+    });
+  }
+
+  async delete(id: number) {
+    const existing = await this.prisma.screen.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Screen not found');
+    }
+
+    return this.prisma.screen.delete({ where: { id } });
+  }
 }

@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { ScreensService } from './screens.service';
@@ -10,6 +11,8 @@ describe('ScreensService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      update: jest.Mock;
+      delete: jest.Mock;
     };
   };
 
@@ -19,6 +22,8 @@ describe('ScreensService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
       },
     };
 
@@ -76,6 +81,53 @@ describe('ScreensService', () => {
         orderBy: { createdAt: 'desc' },
       });
       expect(result).toEqual(screens);
+    });
+  });
+
+  describe('update', () => {
+    it('updates screen and sets contentHash to null', async () => {
+      const existing = { id: 1, name: 'Old Name' };
+      const dto = { name: 'New Name' };
+      const updated = { id: 1, name: 'New Name', contentHash: null };
+
+      mockPrismaService.screen.findUnique.mockResolvedValue(existing);
+      mockPrismaService.screen.update.mockResolvedValue(updated);
+
+      const result = await service.update(1, dto);
+
+      expect(mockPrismaService.screen.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrismaService.screen.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { ...dto, contentHash: null },
+      });
+      expect(result).toEqual(updated);
+    });
+
+    it('throws NotFoundException when screen does not exist', async () => {
+      mockPrismaService.screen.findUnique.mockResolvedValue(null);
+
+      await expect(service.update(999, { name: 'New' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes screen by id', async () => {
+      const existing = { id: 1, name: 'Screen to Delete' };
+
+      mockPrismaService.screen.findUnique.mockResolvedValue(existing);
+      mockPrismaService.screen.delete.mockResolvedValue(existing);
+
+      const result = await service.delete(1);
+
+      expect(mockPrismaService.screen.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrismaService.screen.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(result).toEqual(existing);
+    });
+
+    it('throws NotFoundException when screen does not exist', async () => {
+      mockPrismaService.screen.findUnique.mockResolvedValue(null);
+
+      await expect(service.delete(999)).rejects.toThrow(NotFoundException);
     });
   });
 
