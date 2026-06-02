@@ -3,6 +3,17 @@ import type { JwtSignOptions } from '@nestjs/jwt';
 
 type JwtExpiresIn = JwtSignOptions['expiresIn'];
 
+function requireSecret(envVar: string, fallback: string): string {
+  const value = process.env[envVar];
+  if (!value) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${envVar} is required in production`);
+    }
+    return fallback;
+  }
+  return value;
+}
+
 function parseDurationToSeconds(value: string): number {
   const match = new RegExp(/^(\d+)\s*([smhdwy])$/).exec(value);
   if (!match) throw new Error(`Cannot parse duration: "${value}". Use a duration string like 1h, 7d, 30m.`);
@@ -26,8 +37,8 @@ function parseJwtExpiresIn(value: string | undefined, fallback: JwtExpiresIn): n
 }
 
 export default registerAs('auth', () => ({
-  userSecret: process.env.JWT_USER_SECRET || 'dev-user-secret-change-me',
-  deviceSecret: process.env.JWT_DEVICE_SECRET || 'dev-device-secret-change-me',
+  userSecret: requireSecret('JWT_USER_SECRET', 'dev-user-secret-change-me'),
+  deviceSecret: requireSecret('JWT_DEVICE_SECRET', 'dev-device-secret-change-me'),
   userExpiresIn: parseJwtExpiresIn(process.env.JWT_USER_EXPIRES_IN, '1h'),
   deviceExpiresIn: parseJwtExpiresIn(process.env.JWT_DEVICE_EXPIRES_IN, '1h'),
 }));

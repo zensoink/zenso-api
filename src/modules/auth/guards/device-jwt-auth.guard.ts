@@ -18,11 +18,12 @@ export class DeviceJwtAuthGuard extends AuthGuard('device-jwt') {
     const request = context.switchToHttp().getRequest<Request>();
     const uid = request.params?.uid;
 
-    if (uid) {
-      assertHasUid(user);
-      if (user.uid !== uid) {
-        throw new UnauthorizedException('Device UID mismatch');
-      }
+    if (!uid) {
+      throw new UnauthorizedException('Missing device UID parameter');
+    }
+    assertHasUid(user);
+    if (user.uid !== uid) {
+      throw new UnauthorizedException('Device UID mismatch');
     }
 
     return user;
