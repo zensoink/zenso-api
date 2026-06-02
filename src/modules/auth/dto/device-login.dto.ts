@@ -3,9 +3,9 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class DeviceLoginDto {
   @IsString()
   @IsNotEmpty()
-  uid: string;
+  uid!: string;
 
   @IsString()
   @IsNotEmpty()
-  secret: string;
+  secret!: string;
 }

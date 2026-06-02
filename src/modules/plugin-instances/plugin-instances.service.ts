@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { toPrismaJson } from '@core/prisma/utils';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
@@ -20,7 +21,7 @@ export class PluginInstancesService {
         pluginId: dto.pluginId,
         pluginVersionId: dto.pluginVersionId,
         name: dto.name,
-        configJson: (dto.configJson ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        configJson: toPrismaJson(dto.configJson ?? Prisma.JsonNull),
         executionMode: dto.executionMode ?? 'local',
         isEnabled: dto.isEnabled ?? true,
         userId: dto.userId,
@@ -64,7 +65,7 @@ export class PluginInstancesService {
         where: { id },
         data: {
           ...dto,
-          configJson: dto.configJson !== undefined ? (dto.configJson as Prisma.InputJsonValue) : undefined,
+          configJson: dto.configJson !== undefined ? toPrismaJson(dto.configJson) : undefined,
         },
       }),
       ...screenIds.map(screenId =>

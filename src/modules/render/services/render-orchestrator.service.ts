@@ -1,6 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getDefaultPalettes } from 'epdoptimize';
+import { z } from 'zod';
 
 import { EpdImageService } from './epd-image.service';
 import { RenderCacheService } from './render-cache.service';
@@ -120,7 +121,7 @@ export class RenderOrchestratorService {
       width: screen.width,
       height: screen.height,
       palette: screen.palette.length > 0 ? screen.palette : this.getDefaultPalette(),
-      mode: (screen.renderMode as 'photo' | 'ui') || 'ui',
+      mode: z.enum(['photo', 'ui']).safeParse(screen.renderMode).data ?? 'ui',
     };
   }
 

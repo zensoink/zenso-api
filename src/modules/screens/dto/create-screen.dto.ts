@@ -1,6 +1,6 @@
 export class CreateScreenDTO {
-  name: string;
-  userId: number;
+  name!: string;
+  userId!: number;
   layoutType?: string;
   width?: number;
   height?: number;

@@ -1,6 +1,6 @@
 import { PrismaService } from '@core/prisma';
+import { toPrismaJson } from '@core/prisma/utils';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { RegistryPluginDetail } from '../interfaces/registry-types';
@@ -92,7 +92,7 @@ export class PluginsService {
         data: {
           pluginId: plugin.id,
           version,
-          manifestJson: detail as unknown as Prisma.InputJsonValue,
+          manifestJson: toPrismaJson(detail),
           sourceUrl: `${this.registryClient.baseUrl}/api/v1/plugins/${encodeURIComponent(detail.id)}`,
           installPath: null,
           executionMode: 'protected',

@@ -1,6 +1,6 @@
 import { PrismaService } from '@core/prisma';
+import { toPrismaJson } from '@core/prisma/utils';
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 
 import { PluginStorageService } from './plugin-storage.service';
 import { PluginValidatorService } from './plugin-validator.service';
@@ -66,7 +66,7 @@ export class PluginImportService {
         data: {
           pluginId: plugin.id,
           version,
-          manifestJson: manifest as unknown as Prisma.InputJsonValue,
+          manifestJson: toPrismaJson(manifest),
           sourceUrl: sourceInfo.sourceUrl ?? null,
           sourceRef: sourceInfo.sourceRef ?? null,
           checksumSha256: validation.checksumSha256,

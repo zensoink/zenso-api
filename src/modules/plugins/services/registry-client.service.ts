@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { RegistryPluginDetail, RegistryPluginMeta, RegistryPluginVersion } from '../interfaces/registry-types';
+import {
+  registryPluginDetailSchema,
+  registryPluginMetaSchema,
+  registryPluginVersionSchema,
+} from '../interfaces/registry-types.schema';
 
 @Injectable()
 export class RegistryClient {
@@ -17,22 +21,22 @@ export class RegistryClient {
     this.baseUrl = url;
   }
 
-  async getCatalog(): Promise<RegistryPluginMeta[]> {
+  async getCatalog() {
     const res = await this.fetch(`/api/v1/plugins`);
 
-    return res.json() as Promise<RegistryPluginMeta[]>;
+    return registryPluginMetaSchema.array().parse(await res.json());
   }
 
-  async getPlugin(pluginId: string): Promise<RegistryPluginDetail> {
+  async getPlugin(pluginId: string) {
     const res = await this.fetch(`/api/v1/plugins/${encodeURIComponent(pluginId)}`);
 
-    return res.json() as Promise<RegistryPluginDetail>;
+    return registryPluginDetailSchema.parse(await res.json());
   }
 
-  async getPluginVersions(pluginId: string): Promise<RegistryPluginVersion[]> {
+  async getPluginVersions(pluginId: string) {
     const res = await this.fetch(`/api/v1/plugins/${encodeURIComponent(pluginId)}/versions`);
 
-    return res.json() as Promise<RegistryPluginVersion[]>;
+    return registryPluginVersionSchema.array().parse(await res.json());
   }
 
   async downloadPluginZip(pluginId: string, version: string): Promise<Buffer> {

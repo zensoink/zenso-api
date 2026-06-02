@@ -5,6 +5,7 @@ import { PrismaService } from '@core/prisma';
 import { PluginStorageService } from '@modules/plugins';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Liquid } from 'liquidjs';
+import { z } from 'zod';
 
 import { ContextAggregationService } from './context-aggregation.service';
 
@@ -88,12 +89,13 @@ export class PluginExecutionService {
       throw new NotFoundException(`Template not found at ${templatePath} for plugin "${instance.plugin.name}"`);
     }
 
-    const manifestJson = pluginVersion.manifestJson as Record<string, unknown> | undefined;
+    const recordSchema = z.record(z.string(), z.unknown());
+    const manifestJson = pluginVersion.manifestJson ? recordSchema.parse(pluginVersion.manifestJson) : undefined;
 
     const context = await this.contextAggregationService.buildContext({
       screenId: params.screenId,
       runtimeData: params.runtimeData,
-      configJson: (instance.configJson as Record<string, unknown>) ?? {},
+      configJson: instance.configJson ? recordSchema.parse(instance.configJson) : {},
       manifestJson,
       pluginVersion: pluginVersion.version,
       width: params.width,

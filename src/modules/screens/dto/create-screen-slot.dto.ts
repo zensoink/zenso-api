@@ -1,6 +1,6 @@
 export class CreateScreenSlotDTO {
-  pluginInstanceId: number;
-  slotKey: string;
+  pluginInstanceId!: number;
+  slotKey!: string;
   renderOrder?: number;
   x?: number;
   y?: number;
