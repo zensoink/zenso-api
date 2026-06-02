@@ -1,9 +1,11 @@
-import { Body, Controller, Header, Param, ParseIntPipe, Post, StreamableFile } from '@nestjs/common';
+import { UserJwtAuthGuard } from '@modules/auth';
+import { Body, Controller, Header, Param, ParseIntPipe, Post, StreamableFile, UseGuards } from '@nestjs/common';
 
 import { RenderScreenDTO } from './dto/render-screen.dto';
 import { RenderOrchestratorService } from './services/render-orchestrator.service';
 
 @Controller('screens')
+@UseGuards(UserJwtAuthGuard)
 export class RenderController {
   constructor(private readonly renderOrchestratorService: RenderOrchestratorService) {}
 

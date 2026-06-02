@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { UserJwtAuthGuard } from '@modules/auth';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { PluginsService } from '../services/plugins.service';
@@ -32,11 +33,13 @@ export class PluginsController {
   }
 
   @Post('install-from-registry')
+  @UseGuards(UserJwtAuthGuard)
   installFromRegistry(@Body() dto: InstallFromRegistryDTO) {
     return this.pluginsService.installFromRegistry(dto);
   }
 
   @Get('installed')
+  @UseGuards(UserJwtAuthGuard)
   getInstalledPlugins() {
     return this.pluginsService.getInstalledPlugins();
   }

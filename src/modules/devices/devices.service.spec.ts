@@ -30,6 +30,9 @@ describe('DevicesService', () => {
     updatedAt: new Date(),
     lastSeenAt: null,
     firmwareVersion: null,
+    deviceSecretHash: '$2b$10$somehash',
+    deviceTokenVersion: 1,
+    revokedAt: null,
   };
 
   const mockScreen = {
@@ -263,6 +266,36 @@ describe('DevicesService', () => {
       const result = await service.checkIn('device-123', {});
 
       expect(result.refreshRate).toBe(300);
+    });
+  });
+
+  describe('rotateSecret', () => {
+    it('should rotate secret and increment token version', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrismaService.device.update.mockResolvedValue({ ...mockDevice, deviceTokenVersion: 2 });
+
+      const result = await service.rotateSecret(1);
+
+      expect(mockPrismaService.device.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrismaService.device.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          deviceSecretHash: expect.any(String),
+          deviceTokenVersion: { increment: 1 },
+        }),
+      });
+      expect(result.id).toBe(1);
+      expect(result.rawSecret).toBeDefined();
+      expect(typeof result.rawSecret).toBe('string');
+      expect(result.rawSecret.length).toBeGreaterThan(0);
+    });
+
+    it('should throw NotFoundException when device does not exist', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(null);
+
+      await expect(service.rotateSecret(999)).rejects.toThrow(NotFoundException);
     });
   });
 });

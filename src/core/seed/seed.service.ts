@@ -1,6 +1,8 @@
 import { PluginImportService } from '@modules/plugins';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 import { PrismaService } from '../prisma';
 
@@ -32,11 +34,17 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seed() {
+    const passwordHash = await bcrypt.hash('demo123', 10);
     const user = await this.prisma.user.create({
-      data: { name: 'Demo User', email: 'demo@zenso.local' },
+      data: { name: 'Demo User', email: 'demo@zenso.local', passwordHash },
     });
 
     const plugin = await this.downloadAndImportPlugin();
+
+    const rawSecret = crypto.randomBytes(32).toString('hex');
+    const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
+
+    this.logger.warn(`⚠️  DEV ONLY — Demo device raw secret (save this, it will not be shown again): ${rawSecret}`);
 
     const device = await this.prisma.device.create({
       data: {
@@ -45,6 +53,7 @@ export class SeedService implements OnApplicationBootstrap {
         width: 800,
         height: 480,
         userId: user.id,
+        deviceSecretHash,
       },
     });
 
