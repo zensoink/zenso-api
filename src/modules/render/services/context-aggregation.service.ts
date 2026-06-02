@@ -104,7 +104,7 @@ export class ContextAggregationService {
         id: z
           .string()
           .nullable()
-          .parse(params.manifestJson?.['id'] ?? null),
+          .parse(params.manifestJson ?? null),
         name: z
           .string()
           .nullable()
