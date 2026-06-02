@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { CreatePluginInstanceDTO } from './dto/create-plugin-instance.dto';
+import { UpdatePluginInstanceDTO } from './dto/update-plugin-instance.dto';
 
 @Injectable()
 export class PluginInstancesService {
@@ -45,18 +46,33 @@ export class PluginInstancesService {
     return instance;
   }
 
-  // TODO: invalidate contentHash on plugin instance configJson update
-  // When implementing update(), find all ScreenSlots referencing this instance
-  // and set contentHash: null on their parent screens:
-  //   const slots = await this.prisma.screenSlot.findMany({
-  //     where: { pluginInstanceId: id },
-  //   });
-  //   await Promise.all(
-  //     slots.map(slot =>
-  //       this.prisma.screen.update({
-  //         where: { id: slot.screenId },
-  //         data: { contentHash: null },
-  //       }),
-  //     ),
-  //   );
+  async update(id: number, dto: UpdatePluginInstanceDTO) {
+    const existing = await this.prisma.pluginInstance.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('PluginInstance not found');
+    }
+
+    const screenSlots = await this.prisma.screenSlot.findMany({
+      where: { pluginInstanceId: id },
+      select: { screenId: true },
+    });
+
+    const screenIds = [...new Set(screenSlots.map(s => s.screenId))];
+
+    await this.prisma.$transaction([
+      this.prisma.pluginInstance.update({
+        where: { id },
+        data: {
+          ...dto,
+          configJson: dto.configJson !== undefined ? (dto.configJson as Prisma.InputJsonValue) : undefined,
+        },
+      }),
+      ...screenIds.map(screenId =>
+        this.prisma.screen.update({
+          where: { id: screenId },
+          data: { contentHash: null },
+        })
+      ),
+    ]);
+  }
 }
