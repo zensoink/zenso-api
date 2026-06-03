@@ -15,7 +15,11 @@ export class RenderController {
   @Post(':id/render/preview')
   @Header('Content-Type', 'image/png')
   @ApiOperation({ summary: 'Render preview image for screen' })
-  @ApiResponse({ status: 200, description: 'PNG image buffer' })
+  @ApiResponse({
+    status: 200,
+    description: 'PNG image buffer',
+    content: { 'image/png': { schema: { type: 'string', format: 'binary' } } },
+  })
   async renderPreview(@Param('id', ParseIntPipe) id: number, @Body() dto?: RenderScreenDTO): Promise<StreamableFile> {
     const { buffer: png } = await this.renderOrchestratorService.renderPreview(id, dto?.context);
     return new StreamableFile(png);
