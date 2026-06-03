@@ -49,12 +49,12 @@ describe('ScreensService', () => {
       const expected = { id: 1, ...dto };
       mockPrismaService.screen.create.mockResolvedValue(expected);
 
-      const result = await service.create(dto);
+      const result = await service.create(1, dto);
 
       expect(mockPrismaService.screen.create).toHaveBeenCalledWith({
         data: {
           name: dto.name,
-          userId: dto.userId,
+          userId: 1,
           layoutType: dto.layoutType,
           width: dto.width,
           height: dto.height,

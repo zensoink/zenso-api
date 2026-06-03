@@ -1,6 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { toPrismaJson } from '@core/prisma/utils';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Plugin, PluginVersion } from '@prisma/client';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { RegistryPluginDetail } from '../interfaces/registry-types';
@@ -25,17 +26,7 @@ export class PluginsService {
       orderBy: { name: 'asc' },
     });
 
-    return plugins.map(p => ({
-      pluginId: p.manifestId,
-      slug: p.slug,
-      name: p.name,
-      description: p.description,
-      authorName: p.authorName,
-      executionMode: p.versions[0]?.executionMode || 'local',
-      selectedVersion: p.versions[0]?.version ?? null,
-      installedVersions: p.versions.map(v => v.version),
-      status: p.versions[0]?.status ?? 'unknown',
-    }));
+    return plugins.map(p => this.toInstalledPluginResponse(p));
   }
 
   async getInstalledPluginById(id: number) {
@@ -52,6 +43,10 @@ export class PluginsService {
       throw new NotFoundException('Plugin not found');
     }
 
+    return this.toInstalledPluginResponse(plugin);
+  }
+
+  private toInstalledPluginResponse(plugin: Plugin & { versions: PluginVersion[] }) {
     return {
       pluginId: plugin.manifestId,
       slug: plugin.slug,

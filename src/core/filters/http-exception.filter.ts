@@ -9,31 +9,36 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
 
-    let message: string;
-
-    if (typeof exceptionResponse === 'string') {
-      message = exceptionResponse;
-    } else if (exceptionResponse !== null && typeof exceptionResponse === 'object') {
-      if ('message' in exceptionResponse) {
-        const raw = exceptionResponse.message;
-        if (Array.isArray(raw)) {
-          message = raw.join('; ');
-        } else if (typeof raw === 'string') {
-          message = raw;
-        } else {
-          message = 'An error occurred';
-        }
-      } else {
-        message = 'An error occurred';
-      }
-    } else {
-      message = 'An error occurred';
-    }
-
     response.status(status).json({
       statusCode: status,
-      message,
+      message: this.extractMessage(exceptionResponse),
       timestamp: new Date().toISOString(),
     });
+  }
+
+  private extractMessage(exceptionResponse: unknown): string {
+    if (typeof exceptionResponse === 'string') {
+      return exceptionResponse;
+    }
+
+    if (!exceptionResponse || typeof exceptionResponse !== 'object') {
+      return 'An error occurred';
+    }
+
+    if (!('message' in exceptionResponse)) {
+      return 'An error occurred';
+    }
+
+    const raw: unknown = exceptionResponse.message;
+
+    if (Array.isArray(raw)) {
+      return raw.join('; ');
+    }
+
+    if (typeof raw === 'string') {
+      return raw;
+    }
+
+    return 'An error occurred';
   }
 }

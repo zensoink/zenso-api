@@ -1,6 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -10,6 +11,22 @@ import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
 
 @Injectable()
 export class DevicesService {
+  private readonly DEVICE_SELECT: Prisma.DeviceSelect = {
+    id: true,
+    uid: true,
+    name: true,
+    width: true,
+    height: true,
+    palette: true,
+    deviceTokenVersion: true,
+    lastSeenAt: true,
+    firmwareVersion: true,
+    revokedAt: true,
+    userId: true,
+    createdAt: true,
+    updatedAt: true,
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly renderCacheService: RenderCacheService
@@ -50,21 +67,7 @@ export class DevicesService {
 
   async findAll() {
     return this.prisma.device.findMany({
-      select: {
-        id: true,
-        uid: true,
-        name: true,
-        width: true,
-        height: true,
-        palette: true,
-        deviceTokenVersion: true,
-        lastSeenAt: true,
-        firmwareVersion: true,
-        revokedAt: true,
-        userId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: this.DEVICE_SELECT,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -72,21 +75,7 @@ export class DevicesService {
   async findById(id: number) {
     const device = await this.prisma.device.findUnique({
       where: { id },
-      select: {
-        id: true,
-        uid: true,
-        name: true,
-        width: true,
-        height: true,
-        palette: true,
-        deviceTokenVersion: true,
-        lastSeenAt: true,
-        firmwareVersion: true,
-        revokedAt: true,
-        userId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: this.DEVICE_SELECT,
     });
 
     if (!device) {
