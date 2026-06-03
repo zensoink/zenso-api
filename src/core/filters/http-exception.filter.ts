@@ -14,10 +14,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (typeof exceptionResponse === 'string') {
       message = exceptionResponse;
     } else if (exceptionResponse !== null && typeof exceptionResponse === 'object') {
-      message =
-        'message' in exceptionResponse && typeof exceptionResponse.message === 'string'
-          ? exceptionResponse.message
-          : 'An error occurred';
+      if ('message' in exceptionResponse) {
+        const raw = exceptionResponse.message;
+        if (Array.isArray(raw)) {
+          message = raw.join('; ');
+        } else if (typeof raw === 'string') {
+          message = raw;
+        } else {
+          message = 'An error occurred';
+        }
+      } else {
+        message = 'An error occurred';
+      }
     } else {
       message = 'An error occurred';
     }

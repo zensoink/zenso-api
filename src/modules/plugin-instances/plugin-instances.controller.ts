@@ -1,6 +1,6 @@
 import { UserJwtAuthGuard } from '@modules/auth';
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { CreatePluginInstanceDTO } from './dto/create-plugin-instance.dto';
 import { UpdatePluginInstanceDTO } from './dto/update-plugin-instance.dto';
@@ -33,6 +33,8 @@ export class PluginInstancesController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete plugin instance' })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 404 })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.pluginInstancesService.remove(id);
   }

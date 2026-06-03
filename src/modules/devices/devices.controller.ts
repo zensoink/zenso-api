@@ -112,6 +112,11 @@ export class DevicesController {
   @UseGuards(DeviceJwtAuthGuard)
   @ApiOperation({ summary: 'Device check-in to report status and receive config' })
   @ApiBearerAuth('device-jwt')
+  @ApiResponse({
+    status: 200,
+    type: DeviceStatusResponseDto,
+    description: 'Check-in accepted, returns config and next refresh interval',
+  })
   async checkIn(@Param('uid') uid: string, @Body() dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
     return this.devicesService.checkIn(uid, dto);
   }
