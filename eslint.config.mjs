@@ -10,7 +10,7 @@ import unusedImports from 'eslint-plugin-unused-imports';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs', 'prisma/'],
+    ignores: ['eslint.config.mjs', 'prisma/', 'prisma.config.ts'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
