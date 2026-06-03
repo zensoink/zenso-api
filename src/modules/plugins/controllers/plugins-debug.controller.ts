@@ -1,8 +1,9 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiExcludeController, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PluginStorageService } from '../services/plugin-storage.service';
 
+@ApiExcludeController()
 @ApiTags('plugins-debug')
 @Controller('plugins-debug')
 export class PluginsDebugController {

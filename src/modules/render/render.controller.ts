@@ -5,7 +5,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { RenderScreenDTO } from './dto/render-screen.dto';
 import { RenderOrchestratorService } from './services/render-orchestrator.service';
 
-@ApiTags('render')
+@ApiTags('screens')
 @ApiBearerAuth('user-jwt')
 @Controller('screens')
 @UseGuards(UserJwtAuthGuard)
