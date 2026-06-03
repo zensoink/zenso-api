@@ -8,11 +8,11 @@ import { UpdateScreenDTO } from './dto/update-screen.dto';
 export class ScreensService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateScreenDTO) {
+  async create(userId: number, dto: CreateScreenDTO) {
     return this.prisma.screen.create({
       data: {
         name: dto.name,
-        userId: dto.userId,
+        userId,
         layoutType: dto.layoutType ?? 'full',
         width: dto.width ?? 800,
         height: dto.height ?? 480,

@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 
 import { CreateScreenSlotDTO } from './dto/create-screen-slot.dto';
+import { UpdateScreenSlotDTO } from './dto/update-screen-slot.dto';
 import { getLayoutSlots } from './layout-helper';
 
 const LAYOUT_TYPE_SCHEMA = z.enum(['full', 'split-50-50', 'top-bottom', '2x2']);
@@ -66,6 +67,41 @@ export class ScreenSlotsService {
     });
 
     return slot;
+  }
+
+  async findByScreenId(screenId: number) {
+    const screen = await this.prisma.screen.findUnique({ where: { id: screenId } });
+    if (!screen) {
+      throw new NotFoundException('Screen not found');
+    }
+
+    return this.prisma.screenSlot.findMany({
+      where: { screenId },
+      include: { pluginInstance: true },
+      orderBy: { renderOrder: 'asc' },
+    });
+  }
+
+  async update(screenId: number, slotId: number, dto: UpdateScreenSlotDTO) {
+    const slot = await this.prisma.screenSlot.findUnique({
+      where: { id: slotId },
+    });
+    if (!slot || slot.screenId !== screenId) {
+      throw new NotFoundException('ScreenSlot not found');
+    }
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.screenSlot.update({
+        where: { id: slotId },
+        data: dto,
+      }),
+      this.prisma.screen.update({
+        where: { id: screenId },
+        data: { contentHash: null },
+      }),
+    ]);
+
+    return updated;
   }
 
   async delete(screenId: number, slotId: number) {

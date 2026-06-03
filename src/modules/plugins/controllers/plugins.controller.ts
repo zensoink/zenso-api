@@ -1,8 +1,20 @@
 import { UserJwtAuthGuard } from '@modules/auth';
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
+import { InstalledPluginResponseDto } from '../dto/installed-plugin-response.dto';
 import { PluginsService } from '../services/plugins.service';
 import { RegistryClient } from '../services/registry-client.service';
 
@@ -46,7 +58,7 @@ export class PluginsController {
   @UseGuards(UserJwtAuthGuard)
   @ApiOperation({ summary: 'Install plugin from registry' })
   @ApiBearerAuth('user-jwt')
-  @ApiResponse({ status: 201, description: 'Plugin installed' })
+  @ApiCreatedResponse({ description: 'Plugin installed' })
   installFromRegistry(@Body() dto: InstallFromRegistryDTO) {
     return this.pluginsService.installFromRegistry(dto);
   }
@@ -55,7 +67,7 @@ export class PluginsController {
   @UseGuards(UserJwtAuthGuard)
   @ApiOperation({ summary: 'List installed plugins' })
   @ApiBearerAuth('user-jwt')
-  @ApiResponse({ status: 200, description: 'List of installed plugins' })
+  @ApiOkResponse({ type: InstalledPluginResponseDto, isArray: true, description: 'List of installed plugins' })
   getInstalledPlugins() {
     return this.pluginsService.getInstalledPlugins();
   }
@@ -64,8 +76,21 @@ export class PluginsController {
   @UseGuards(UserJwtAuthGuard)
   @ApiOperation({ summary: 'Get installed plugin by ID' })
   @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({ type: InstalledPluginResponseDto, description: 'Installed plugin details' })
   @ApiResponse({ status: 404, description: 'Plugin not found' })
   getInstalledPlugin(@Param('id', ParseIntPipe) id: number) {
     return this.pluginsService.getInstalledPluginById(id);
+  }
+
+  @Delete('installed/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({ summary: 'Uninstall plugin by ID' })
+  @ApiBearerAuth('user-jwt')
+  @ApiResponse({ status: 200, description: 'Plugin uninstalled' })
+  @ApiResponse({ status: 404, description: 'Plugin not found' })
+  @ApiResponse({ status: 409, description: 'Plugin is in use by active plugin instances' })
+  uninstall(@Param('id', ParseIntPipe) id: number) {
+    return this.pluginsService.uninstall(id);
   }
 }

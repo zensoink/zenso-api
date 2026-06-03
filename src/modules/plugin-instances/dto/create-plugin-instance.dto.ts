@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreatePluginInstanceDTO {
   @IsInt()
@@ -20,8 +20,6 @@ export class CreatePluginInstanceDTO {
   executionMode?: string;
 
   @IsOptional()
+  @IsBoolean()
   isEnabled?: boolean;
-
-  @IsInt()
-  userId!: number;
 }

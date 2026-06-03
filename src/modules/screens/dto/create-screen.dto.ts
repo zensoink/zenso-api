@@ -1,12 +1,9 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateScreenDTO {
   @IsString()
   @IsNotEmpty()
   name!: string;
-
-  @IsInt()
-  userId!: number;
 
   @IsOptional()
   @IsString()
@@ -25,5 +22,6 @@ export class CreateScreenDTO {
   deviceId?: number;
 
   @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

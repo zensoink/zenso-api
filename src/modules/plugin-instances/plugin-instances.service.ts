@@ -10,7 +10,7 @@ import { UpdatePluginInstanceDTO } from './dto/update-plugin-instance.dto';
 export class PluginInstancesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreatePluginInstanceDTO) {
+  async create(userId: number, dto: CreatePluginInstanceDTO) {
     const plugin = await this.prisma.plugin.findUnique({ where: { id: dto.pluginId } });
     if (!plugin) {
       throw new NotFoundException('Plugin not found');
@@ -24,7 +24,7 @@ export class PluginInstancesService {
         configJson: toPrismaJson(dto.configJson ?? Prisma.JsonNull),
         executionMode: dto.executionMode ?? 'local',
         isEnabled: dto.isEnabled ?? true,
-        userId: dto.userId,
+        userId,
       },
     });
   }
@@ -39,7 +39,7 @@ export class PluginInstancesService {
   async findById(id: number) {
     const instance = await this.prisma.pluginInstance.findUnique({
       where: { id },
-      include: { plugin: true },
+      include: { plugin: true, pluginVersion: true },
     });
     if (!instance) {
       throw new NotFoundException('PluginInstance not found');
@@ -64,7 +64,7 @@ export class PluginInstancesService {
 
     const screenIds = [...new Set(screenSlots.map(s => s.screenId))];
 
-    await this.prisma.$transaction([
+    const [updated] = await this.prisma.$transaction([
       this.prisma.pluginInstance.update({
         where: { id },
         data: {
@@ -79,5 +79,7 @@ export class PluginInstancesService {
         })
       ),
     ]);
+
+    return updated;
   }
 }

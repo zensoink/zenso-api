@@ -1,6 +1,6 @@
 import { PrismaService } from '@core/prisma';
 import { toPrismaJson } from '@core/prisma/utils';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { RegistryPluginDetail } from '../interfaces/registry-types';
@@ -63,6 +63,23 @@ export class PluginsService {
       installedVersions: plugin.versions.map(v => v.version),
       status: plugin.versions[0]?.status ?? 'unknown',
     };
+  }
+
+  async uninstall(id: number) {
+    const plugin = await this.prisma.plugin.findUnique({ where: { id } });
+    if (!plugin) {
+      throw new NotFoundException('Plugin not found');
+    }
+
+    const count = await this.prisma.pluginInstance.count({ where: { pluginId: id } });
+    if (count > 0) {
+      throw new ConflictException(`Plugin is in use by ${count} plugin instance(s). Remove them first.`);
+    }
+
+    await this.prisma.pluginVersion.deleteMany({ where: { pluginId: id } });
+    await this.prisma.plugin.delete({ where: { id } });
+
+    return { message: 'Plugin uninstalled', pluginId: id };
   }
 
   async installFromRegistry(dto: InstallFromRegistryDTO) {
