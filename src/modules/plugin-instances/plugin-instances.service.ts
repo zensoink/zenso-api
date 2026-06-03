@@ -47,6 +47,10 @@ export class PluginInstancesService {
     return instance;
   }
 
+  async remove(id: number) {
+    return this.prisma.pluginInstance.delete({ where: { id } });
+  }
+
   async update(id: number, dto: UpdatePluginInstanceDTO) {
     const existing = await this.prisma.pluginInstance.findUnique({ where: { id } });
     if (!existing) {

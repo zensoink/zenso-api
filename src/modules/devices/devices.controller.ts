@@ -16,12 +16,14 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { DevicesService } from './devices.service';
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
 import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
 
+@ApiTags('devices')
 @Controller('devices')
 export class DevicesController {
   private readonly logger = new Logger(DevicesController.name);
@@ -37,6 +39,10 @@ export class DevicesController {
   // - 200 sends the buffer via res.status(200).send(buffer)
   @Get(':uid/display')
   @UseGuards(DeviceJwtAuthGuard)
+  @ApiOperation({ summary: 'Get rendered display image for device' })
+  @ApiBearerAuth('device-jwt')
+  @ApiResponse({ status: 200, description: 'Raw EPD image or PNG preview' })
+  @ApiResponse({ status: 304, description: 'Not modified (ETag match)' })
   async getDisplay(
     @Param('uid') uid: string,
     @Res() res: Response,
@@ -104,12 +110,16 @@ export class DevicesController {
 
   @Post(':uid/check-in')
   @UseGuards(DeviceJwtAuthGuard)
+  @ApiOperation({ summary: 'Device check-in to report status and receive config' })
+  @ApiBearerAuth('device-jwt')
   async checkIn(@Param('uid') uid: string, @Body() dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
     return this.devicesService.checkIn(uid, dto);
   }
 
   @Post(':id/rotate-secret')
   @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({ summary: 'Rotate device secret (admin)' })
+  @ApiBearerAuth('user-jwt')
   async rotateSecret(@Param('id', ParseIntPipe) id: number) {
     return this.devicesService.rotateSecret(id);
   }
