@@ -28,7 +28,6 @@ describe('RenderOrchestratorService', () => {
   };
   let mockEpdImageService: {
     renderPreview: jest.Mock;
-    renderForDevice: jest.Mock;
   };
 
   const mockScreen = {
@@ -75,7 +74,6 @@ describe('RenderOrchestratorService', () => {
 
   const mockComposedPng = Buffer.from('composed-png');
   const mockPreviewBuffer = Buffer.from('preview-output');
-  const mockDeviceBuffer = Buffer.from('device-output');
   const mockCacheKey = 'abc123def456abc123def456abc123de';
 
   beforeEach(async () => {
@@ -101,7 +99,6 @@ describe('RenderOrchestratorService', () => {
 
     mockEpdImageService = {
       renderPreview: jest.fn().mockResolvedValue(mockPreviewBuffer),
-      renderForDevice: jest.fn().mockResolvedValue(mockDeviceBuffer),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -137,20 +134,6 @@ describe('RenderOrchestratorService', () => {
       mockPrismaService.screen.findUnique.mockResolvedValue(null);
 
       await expect(service.renderPreview(999)).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('renderForDevice', () => {
-    it('returns { buffer, contentKey }', async () => {
-      mockPrismaService.screen.findUnique.mockResolvedValueOnce(mockScreen).mockResolvedValueOnce(mockScreen);
-      mockScreenRenderService.renderSlots.mockResolvedValue([
-        { x: 0, y: 0, w: 800, h: 480, zIndex: 0, pngBuffer: Buffer.from('slot-png') },
-      ]);
-
-      const result = await service.renderForDevice(1);
-
-      expect(result).toHaveProperty('buffer');
-      expect(result).toHaveProperty('contentKey', mockCacheKey);
     });
   });
 
