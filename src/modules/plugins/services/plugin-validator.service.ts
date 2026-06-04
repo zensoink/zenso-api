@@ -6,6 +6,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
 import { pluginManifestSchema } from '../interfaces/plugin-manifest.schema';
+
 @Injectable()
 export class PluginValidatorService {
   async validateExtractedPlugin(rootDir: string): Promise<{
@@ -13,10 +14,10 @@ export class PluginValidatorService {
     checksumSha256: string;
   }> {
     const manifestPath = path.join(rootDir, 'manifest.json');
-    const indexPath = path.join(rootDir, 'src', 'index.liquid');
+    const indexPath = path.join(rootDir, 'index.liquid');
 
     await this.assertExists(manifestPath, 'manifest.json is missing');
-    await this.assertExists(indexPath, 'src/index.liquid is missing');
+    await this.assertExists(indexPath, 'index.liquid is missing');
 
     await this.assertNoForbiddenFiles(rootDir);
 
