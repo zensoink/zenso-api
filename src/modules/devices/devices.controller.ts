@@ -5,23 +5,41 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Logger,
   NotFoundException,
   Param,
   ParseIntPipe,
   Post,
   Query,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { DevicesService } from './devices.service';
+import { CreateDeviceDto } from './dto/create-device.dto';
+import { CreateDeviceResponseDto } from './dto/create-device-response.dto';
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
+import { DeviceResponseDto } from './dto/device-response.dto';
 import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
+import { RotateDeviceSecretResponseDto } from './dto/rotate-device-secret-response.dto';
 
+@ApiTags('devices')
 @Controller('devices')
 export class DevicesController {
   private readonly logger = new Logger(DevicesController.name);
@@ -32,11 +50,55 @@ export class DevicesController {
     private readonly devicesService: DevicesService
   ) {}
 
+  @Post()
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({ summary: 'Create device and generate secret' })
+  @ApiBearerAuth('user-jwt')
+  @ApiCreatedResponse({ type: CreateDeviceResponseDto, description: 'Device created, rawSecret shown once' })
+  async create(@Body() dto: CreateDeviceDto, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.createDevice(req.user.userId, dto);
+  }
+
+  @Get()
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({ summary: 'List all devices' })
+  @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({ type: DeviceResponseDto, isArray: true, description: 'List of devices' })
+  findAll() {
+    return this.devicesService.findAll();
+  }
+
+  @Get(':id')
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({ summary: 'Get device by ID' })
+  @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({ type: DeviceResponseDto, description: 'Device details' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  findById(@Param('id', ParseIntPipe) id: number) {
+    return this.devicesService.findById(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({ summary: 'Revoke device (soft delete)' })
+  @ApiBearerAuth('user-jwt')
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Device revoked' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  revoke(@Param('id', ParseIntPipe) id: number) {
+    return this.devicesService.revoke(id);
+  }
+
   // Uses @Res() (no passthrough) for full manual response control:
   // - 304 sends no body via res.status(304).end()
   // - 200 sends the buffer via res.status(200).send(buffer)
   @Get(':uid/display')
   @UseGuards(DeviceJwtAuthGuard)
+  @ApiOperation({ summary: 'Get rendered display image for device' })
+  @ApiBearerAuth('device-jwt')
+  @ApiResponse({ status: 200, description: 'Raw EPD image or PNG preview' })
+  @ApiResponse({ status: 304, description: 'Not modified (ETag match)' })
+  @ApiHeader({ name: 'if-none-match', required: false, description: 'ETag from previous response' })
   async getDisplay(
     @Param('uid') uid: string,
     @Res() res: Response,
@@ -104,12 +166,23 @@ export class DevicesController {
 
   @Post(':uid/check-in')
   @UseGuards(DeviceJwtAuthGuard)
+  @ApiOperation({ summary: 'Device check-in to report status and receive config' })
+  @ApiBearerAuth('device-jwt')
+  @ApiResponse({
+    status: 200,
+    type: DeviceStatusResponseDto,
+    description: 'Check-in accepted, returns config and next refresh interval',
+  })
   async checkIn(@Param('uid') uid: string, @Body() dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
     return this.devicesService.checkIn(uid, dto);
   }
 
   @Post(':id/rotate-secret')
   @UseGuards(UserJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Rotate device secret (admin)' })
+  @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({ type: RotateDeviceSecretResponseDto, description: 'Device secret rotated' })
   async rotateSecret(@Param('id', ParseIntPipe) id: number) {
     return this.devicesService.rotateSecret(id);
   }

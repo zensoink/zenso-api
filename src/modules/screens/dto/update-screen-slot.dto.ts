@@ -1,14 +1,6 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional } from 'class-validator';
 
-export class CreateScreenSlotDTO {
-  @IsInt()
-  @IsNotEmpty()
-  pluginInstanceId!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  slotKey!: string;
-
+export class UpdateScreenSlotDTO {
   @IsOptional()
   @IsInt()
   renderOrder?: number;

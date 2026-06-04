@@ -1,18 +1,104 @@
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
+import { CreateDeviceDto } from './dto/create-device.dto';
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
 import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
 
 @Injectable()
 export class DevicesService {
+  private readonly DEVICE_SELECT: Prisma.DeviceSelect = {
+    id: true,
+    uid: true,
+    name: true,
+    width: true,
+    height: true,
+    palette: true,
+    deviceTokenVersion: true,
+    lastSeenAt: true,
+    firmwareVersion: true,
+    revokedAt: true,
+    userId: true,
+    createdAt: true,
+    updatedAt: true,
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly renderCacheService: RenderCacheService
   ) {}
+
+  async createDevice(userId: number, dto: CreateDeviceDto) {
+    const rawSecret = crypto.randomBytes(32).toString('hex');
+    const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
+
+    const device = await this.prisma.device.create({
+      data: {
+        name: dto.name,
+        width: dto.width ?? 800,
+        height: dto.height ?? 480,
+        palette: dto.palette,
+        deviceSecretHash,
+        deviceTokenVersion: 1,
+        userId,
+      },
+    });
+
+    return {
+      device: {
+        id: device.id,
+        uid: device.uid,
+        name: device.name,
+        width: device.width,
+        height: device.height,
+        palette: device.palette,
+        deviceTokenVersion: device.deviceTokenVersion,
+        userId: device.userId,
+        createdAt: device.createdAt,
+        updatedAt: device.updatedAt,
+      },
+      rawSecret,
+    };
+  }
+
+  async findAll() {
+    return this.prisma.device.findMany({
+      select: this.DEVICE_SELECT,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findById(id: number) {
+    const device = await this.prisma.device.findUnique({
+      where: { id },
+      select: this.DEVICE_SELECT,
+    });
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    return device;
+  }
+
+  async revoke(id: number) {
+    const device = await this.prisma.device.findUnique({ where: { id } });
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const revokedAt = new Date();
+    await this.prisma.device.update({
+      where: { id },
+      data: { revokedAt },
+    });
+
+    return { deviceId: id, revokedAt };
+  }
 
   async checkIn(uid: string, dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
     const device = await this.prisma.device.findUnique({

@@ -1,6 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { toPrismaJson } from '@core/prisma/utils';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Plugin, PluginVersion } from '@prisma/client';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { RegistryPluginDetail } from '../interfaces/registry-types';
@@ -25,17 +26,55 @@ export class PluginsService {
       orderBy: { name: 'asc' },
     });
 
-    return plugins.map(p => ({
-      pluginId: p.manifestId,
-      slug: p.slug,
-      name: p.name,
-      description: p.description,
-      authorName: p.authorName,
-      executionMode: p.versions[0]?.executionMode || 'local',
-      selectedVersion: p.versions[0]?.version ?? null,
-      installedVersions: p.versions.map(v => v.version),
-      status: p.versions[0]?.status ?? 'unknown',
-    }));
+    return plugins.map(p => this.toInstalledPluginResponse(p));
+  }
+
+  async getInstalledPluginById(id: number) {
+    const plugin = await this.prisma.plugin.findUnique({
+      where: { id },
+      include: {
+        versions: {
+          orderBy: { installedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!plugin) {
+      throw new NotFoundException('Plugin not found');
+    }
+
+    return this.toInstalledPluginResponse(plugin);
+  }
+
+  private toInstalledPluginResponse(plugin: Plugin & { versions: PluginVersion[] }) {
+    return {
+      pluginId: plugin.manifestId,
+      slug: plugin.slug,
+      name: plugin.name,
+      description: plugin.description,
+      authorName: plugin.authorName,
+      executionMode: plugin.versions[0]?.executionMode || 'local',
+      selectedVersion: plugin.versions[0]?.version ?? null,
+      installedVersions: plugin.versions.map(v => v.version),
+      status: plugin.versions[0]?.status ?? 'unknown',
+    };
+  }
+
+  async uninstall(id: number) {
+    const plugin = await this.prisma.plugin.findUnique({ where: { id } });
+    if (!plugin) {
+      throw new NotFoundException('Plugin not found');
+    }
+
+    const count = await this.prisma.pluginInstance.count({ where: { pluginId: id } });
+    if (count > 0) {
+      throw new ConflictException(`Plugin is in use by ${count} plugin instance(s). Remove them first.`);
+    }
+
+    await this.prisma.pluginVersion.deleteMany({ where: { pluginId: id } });
+    await this.prisma.plugin.delete({ where: { id } });
+
+    return { message: 'Plugin uninstalled', pluginId: id };
   }
 
   async installFromRegistry(dto: InstallFromRegistryDTO) {

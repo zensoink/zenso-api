@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
 import { Controller, Get, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
+import { ApiExcludeController, ApiOperation } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { PluginStorageService } from '../services/plugin-storage.service';
@@ -40,11 +41,13 @@ const MIME_TYPES: Record<string, string> = {
   '.json': 'application/json',
 };
 
+@ApiExcludeController()
 @Controller('plugins/assets')
 export class PluginAssetsController {
   constructor(private readonly pluginStorageService: PluginStorageService) {}
 
   @Get(':slug/:version/*filePath')
+  @ApiOperation({ summary: 'Serve plugin asset file (public)' })
   async serve(
     @Param('slug') slug: string,
     @Param('version') version: string,
