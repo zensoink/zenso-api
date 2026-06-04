@@ -27,6 +27,13 @@ export class ScreenRenderService {
       include: {
         slots: {
           orderBy: { renderOrder: 'asc' },
+          include: {
+            pluginInstance: {
+              include: {
+                pluginVersion: true,
+              },
+            },
+          },
         },
       },
     });
@@ -53,6 +60,7 @@ export class ScreenRenderService {
           html,
           width: slot.w,
           height: slot.h,
+          assetDir: slot.pluginInstance.pluginVersion?.installPath ?? undefined,
         });
 
         return {

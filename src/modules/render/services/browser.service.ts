@@ -24,14 +24,15 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
     if (this.browser) await this.browser.close();
   }
 
-  async renderHtmlToPng(html: string, width: number, height: number): Promise<Buffer> {
+  async renderHtmlToPng(html: string, width: number, height: number, assetDir?: string): Promise<Buffer> {
     const page = await this.browser.newPage();
 
     try {
       await page.setViewport({ width, height, deviceScaleFactor: 1 });
-      await page.goto(`data:text/html,${encodeURIComponent(html)}`);
-      await page.waitForNetworkIdle({ timeout: 5000 }).catch((err: unknown) => {
-        this.logger.warn('Network idle timeout', err);
+      await page.setContent(html, {
+        waitUntil: 'networkidle0',
+        timeout: 5000,
+        ...(assetDir && { baseURL: `file://${assetDir}/` }),
       });
 
       const screenshot = await page.screenshot({

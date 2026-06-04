@@ -126,6 +126,7 @@ export class PluginExecutionService {
 
     const html = String(await liquid.parseAndRender(template, context));
 
+    console.log(html);
     return { html };
   }
 }
