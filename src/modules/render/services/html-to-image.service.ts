@@ -7,12 +7,12 @@ import { BrowserService } from './browser.service';
 export class HtmlToImageService {
   constructor(private readonly browserService: BrowserService) {}
 
-  async render(params: { html: string; width: number; height: number }): Promise<Buffer> {
+  async render(params: { html: string; width: number; height: number; assetDir?: string }): Promise<Buffer> {
     const fullHtml = getWidgetTemplate(params.html, {
       width: params.width,
       height: params.height,
     });
 
-    return this.browserService.renderHtmlToPng(fullHtml, params.width, params.height);
+    return this.browserService.renderHtmlToPng(fullHtml, params.width, params.height, params.assetDir);
   }
 }

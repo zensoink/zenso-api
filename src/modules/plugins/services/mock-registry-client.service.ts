@@ -65,7 +65,7 @@ export class MockRegistryClient {
 
     const zip = new AdmZip();
     zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2)));
-    zip.addFile('src/index.liquid', Buffer.from('Hello {{ name | default: "World" }}'));
+    zip.addFile('index.liquid', Buffer.from('Hello {{ name | default: "World" }}'));
 
     return Promise.resolve(Buffer.from(zip.toBuffer()));
   }

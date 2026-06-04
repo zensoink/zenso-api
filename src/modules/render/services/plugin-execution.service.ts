@@ -79,7 +79,7 @@ export class PluginExecutionService {
 
     await this.pluginStorageService.readManifest(instance.plugin.slug, pluginVersion.version);
 
-    const templateDir = path.join(pluginVersion.installPath, 'src');
+    const templateDir = path.join(pluginVersion.installPath);
     const templatePath = path.join(templateDir, 'index.liquid');
     let template: string;
 
@@ -125,7 +125,6 @@ export class PluginExecutionService {
     });
 
     const html = String(await liquid.parseAndRender(template, context));
-
     return { html };
   }
 }
