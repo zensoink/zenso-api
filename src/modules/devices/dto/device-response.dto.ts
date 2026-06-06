@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DeviceClaimStatus } from '@prisma/client';
 
 export class DeviceResponseDto {
   @ApiProperty()
@@ -32,7 +33,16 @@ export class DeviceResponseDto {
   revokedAt?: Date | null;
 
   @ApiProperty()
-  userId!: number;
+  userId!: number | null;
+
+  @ApiProperty({ enum: DeviceClaimStatus })
+  claimStatus!: DeviceClaimStatus;
+
+  @ApiPropertyOptional()
+  claimedAt?: Date | null;
+
+  @ApiPropertyOptional()
+  lastBootstrapAt?: Date | null;
 
   @ApiProperty()
   createdAt!: Date;

@@ -12,6 +12,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum DeviceClaimStatus {
+  pending
+  claimed
+  expired
+}
+
+enum ClaimSessionStatus {
+  pending
+  used
+  expired
+  cancelled
+}
+
 model User {
   id              Int              @id @default(autoincrement())
   name            String?
@@ -20,6 +33,7 @@ model User {
   devices         Device[]
   screens         Screen[]
   pluginInstances PluginInstance[]
+  claimedSessions ClaimSession[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -66,27 +80,56 @@ model PluginVersion {
 }
 
 model Device {
-  id        Int      @id @default(autoincrement()) // internal ID
-  uid       String   @unique @default(uuid())      // public key
-  name      String
-  width     Int      @default(800)
-  height    Int      @default(480)
-  palette         String[]  @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
+  id                  Int      @id @default(autoincrement()) // internal ID
+  uid                 String   @unique @default(uuid())      // public key
+  name                String
+  width               Int      @default(800)
+  height              Int      @default(480)
+  palette             String[]  @default(["#191E21", "#F1F1F1", "#31318F", "#53A428", "#D20E13", "#B85E1C", "#F3CF11"])
   lastSeenAt          DateTime?
   firmwareVersion     String?
   deviceSecretHash    String?
   deviceTokenVersion  Int          @default(1)
   revokedAt           DateTime?
 
-  screens             Screen[]
+  // Bootstrap / Claim fields
+  bootstrapSecretHash String?     // hashed bootstrap credential (SHA-256)
+  claimStatus         DeviceClaimStatus      @default(pending)   // pending | claimed | expired
+  claimedAt           DateTime?   // when device was claimed by a user
+  lastBootstrapAt     DateTime?   // last successful bootstrap timestamp
+  hardwareInfoJson    Json?       // hardware metadata from firmware
+  displayInfoJson     Json?       // display parameters from firmware
 
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  screens             Screen[]
+  claimSessions       ClaimSession[]
+
+  userId    Int?
+  user      User?     @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([uid])
+  @@index([claimStatus])
+}
+
+model ClaimSession {
+  id              Int       @id @default(autoincrement())
+  deviceId        Int
+  device          Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  nonceHash       String    @unique                // SHA-256 hash of claim token (never plaintext)
+  status          ClaimSessionStatus    @default(pending)    // pending | used | expired | cancelled
+  expiresAt       DateTime                         // TTL for the claim session
+  usedAt          DateTime?                        // when the claim was completed
+  claimedByUserId Int?
+  claimedByUser   User?     @relation(fields: [claimedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deviceId])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model Screen {
