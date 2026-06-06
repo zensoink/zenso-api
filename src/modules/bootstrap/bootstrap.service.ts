@@ -44,17 +44,33 @@ export class BootstrapService {
       return { claim_url: null, claim_session_id: null, claim_expires_at: null };
     }
 
+    const existingSession = await this.prisma.claimSession.findFirst({
+      where: {
+        deviceId: device.id,
+        status: ClaimSessionStatus.pending,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
     const plaintextToken = randomBytes(32).toString('hex');
     const nonceHash = createHash('sha256').update(plaintextToken).digest('hex');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const session = await this.prisma.claimSession.create({
-      data: {
-        deviceId: device.id,
-        nonceHash,
-        status: ClaimSessionStatus.pending,
-        expiresAt,
-      },
+    const session = await this.prisma.$transaction(async tx => {
+      if (existingSession) {
+        await tx.claimSession.update({
+          where: { id: existingSession.id },
+          data: { status: ClaimSessionStatus.cancelled },
+        });
+      }
+      return tx.claimSession.create({
+        data: {
+          deviceId: device.id,
+          nonceHash,
+          status: ClaimSessionStatus.pending,
+          expiresAt,
+        },
+      });
     });
 
     const baseUrl = this.configService.get<string>('app.baseUrl');

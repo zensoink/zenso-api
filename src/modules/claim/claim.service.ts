@@ -46,12 +46,12 @@ export class ClaimService {
       throw new NotFoundException('Claim session not found');
     }
 
-    if (session.status !== ClaimSessionStatus.pending) {
-      throw new ConflictException('Claim session already used or expired');
-    }
-
     if (session.expiresAt <= new Date()) {
       throw new ConflictException('Claim session expired');
+    }
+
+    if (session.status !== ClaimSessionStatus.pending) {
+      throw new ConflictException('Claim session already used or expired');
     }
 
     if (session.device.claimStatus === DeviceClaimStatus.claimed) {

@@ -1,3 +1,4 @@
+import type { UserJwtPayload } from '@modules/auth';
 import { UserJwtAuthGuard } from '@modules/auth';
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,12 +10,6 @@ import { ClaimService } from './claim.service';
 import { ClaimConfirmRequestDto } from './dto/claim-confirm-request.dto';
 import { ClaimConfirmResponseDto } from './dto/claim-confirm-response.dto';
 import { ClaimInfoResponseDto } from './dto/claim-info-response.dto';
-
-interface UserJwtPayload {
-  sub: number;
-  email: string;
-  type: string;
-}
 
 @Controller()
 export class ClaimController {
