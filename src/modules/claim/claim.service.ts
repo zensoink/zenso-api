@@ -19,7 +19,17 @@ export class ClaimService {
       include: { device: true },
     });
 
-    if (!session || session.expiresAt < new Date()) {
+    if (!session) {
+      throw new NotFoundException('Claim session not found or expired');
+    }
+
+    if (session.expiresAt < new Date()) {
+      if (session.status === ClaimSessionStatus.pending) {
+        await this.prisma.claimSession.update({
+          where: { id: session.id },
+          data: { status: ClaimSessionStatus.expired },
+        });
+      }
       throw new NotFoundException('Claim session not found or expired');
     }
 

@@ -19,6 +19,7 @@ export class ClaimController {
     private readonly configService: ConfigService
   ) {}
 
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   @Get('claim/:token')
   async getClaimInfo(
     @Param('token') token: string,

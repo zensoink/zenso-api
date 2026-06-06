@@ -92,6 +92,18 @@ export class BootstrapService {
       throw new NotFoundException('Session not found');
     }
 
+    if (session.status === ClaimSessionStatus.used) {
+      return { status: 'active' };
+    }
+
+    if (session.status === ClaimSessionStatus.cancelled) {
+      await this.prisma.claimSession.update({
+        where: { id: session.id },
+        data: { status: ClaimSessionStatus.expired },
+      });
+      return { status: 'expired' };
+    }
+
     if (session.expiresAt < new Date() && session.status === ClaimSessionStatus.pending) {
       await this.prisma.claimSession.update({
         where: { id: session.id },
@@ -100,12 +112,6 @@ export class BootstrapService {
       return { status: 'expired' };
     }
 
-    if (session.status === ClaimSessionStatus.used) {
-      return { status: 'active' };
-    }
-
-    const mappedStatus = session.status === ClaimSessionStatus.cancelled ? ClaimSessionStatus.expired : session.status;
-
-    return { status: mappedStatus };
+    return { status: session.status };
   }
 }
