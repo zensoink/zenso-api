@@ -1,7 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { DeviceClaimStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -45,6 +45,7 @@ export class DevicesService {
         deviceSecretHash,
         deviceTokenVersion: 1,
         userId,
+        claimStatus: DeviceClaimStatus.claimed,
       },
     });
 
@@ -58,6 +59,7 @@ export class DevicesService {
         palette: device.palette,
         deviceTokenVersion: device.deviceTokenVersion,
         userId: device.userId,
+        claimStatus: device.claimStatus,
         createdAt: device.createdAt,
         updatedAt: device.updatedAt,
       },
