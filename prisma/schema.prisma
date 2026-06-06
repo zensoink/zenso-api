@@ -116,7 +116,7 @@ model Device {
 model ClaimSession {
   id              Int       @id @default(autoincrement())
   deviceId        Int
-  device          Device    @relation(fields: [deviceId], references: [id])
+  device          Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   nonceHash       String    @unique                // SHA-256 hash of claim token (never plaintext)
   status          ClaimSessionStatus    @default(pending)    // pending | used | expired | cancelled
   expiresAt       DateTime                         // TTL for the claim session

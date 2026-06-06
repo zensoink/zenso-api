@@ -59,6 +59,7 @@ export class DevicesService {
         palette: device.palette,
         deviceTokenVersion: device.deviceTokenVersion,
         userId: device.userId,
+        // bootstrapSecretHash is intentionally excluded — never expose hashed credentials in API responses
         claimStatus: device.claimStatus,
         createdAt: device.createdAt,
         updatedAt: device.updatedAt,

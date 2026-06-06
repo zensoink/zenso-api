@@ -36,7 +36,7 @@ export class DeviceResponseDto {
   userId!: number | null;
 
   @ApiProperty({ enum: DeviceClaimStatus })
-  claimStatus?: DeviceClaimStatus;
+  claimStatus!: DeviceClaimStatus;
 
   @ApiPropertyOptional()
   claimedAt?: Date | null;

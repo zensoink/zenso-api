@@ -1,9 +1,15 @@
+-- CreateEnum
+CREATE TYPE "DeviceClaimStatus" AS ENUM ('pending', 'claimed', 'expired');
+
+-- CreateEnum
+CREATE TYPE "ClaimSessionStatus" AS ENUM ('pending', 'used', 'expired', 'cancelled');
+
 -- AlterTable: Make userId optional in Device (drop NOT NULL)
 ALTER TABLE "Device" ALTER COLUMN "userId" DROP NOT NULL;
 
 -- AlterTable: Add bootstrap/claim fields to Device
 ALTER TABLE "Device" ADD COLUMN "bootstrapSecretHash" TEXT;
-ALTER TABLE "Device" ADD COLUMN "claimStatus" TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE "Device" ADD COLUMN "claimStatus" "DeviceClaimStatus" NOT NULL DEFAULT 'pending';
 ALTER TABLE "Device" ADD COLUMN "claimedAt" TIMESTAMP(3);
 ALTER TABLE "Device" ADD COLUMN "lastBootstrapAt" TIMESTAMP(3);
 ALTER TABLE "Device" ADD COLUMN "hardwareInfoJson" JSONB;
@@ -17,7 +23,7 @@ CREATE TABLE "ClaimSession" (
     "id" SERIAL NOT NULL,
     "deviceId" INTEGER NOT NULL,
     "nonceHash" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'pending',
+    "status" "ClaimSessionStatus" NOT NULL DEFAULT 'pending',
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "usedAt" TIMESTAMP(3),
     "claimedByUserId" INTEGER,
@@ -33,8 +39,8 @@ CREATE INDEX "ClaimSession_deviceId_idx" ON "ClaimSession"("deviceId");
 CREATE INDEX "ClaimSession_status_idx" ON "ClaimSession"("status");
 CREATE INDEX "ClaimSession_expiresAt_idx" ON "ClaimSession"("expiresAt");
 
--- AddForeignKey: ClaimSession.deviceId -> Device.id
-ALTER TABLE "ClaimSession" ADD CONSTRAINT "ClaimSession_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "Device"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey: ClaimSession.deviceId -> Device.id (CASCADE so cleanup can delete expired devices)
+ALTER TABLE "ClaimSession" ADD CONSTRAINT "ClaimSession_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "Device"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey: ClaimSession.claimedByUserId -> User.id
 ALTER TABLE "ClaimSession" ADD CONSTRAINT "ClaimSession_claimedByUserId_fkey" FOREIGN KEY ("claimedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
