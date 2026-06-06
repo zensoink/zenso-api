@@ -1,10 +1,9 @@
 import type { UserJwtPayload } from '@modules/auth';
 import { UserJwtAuthGuard } from '@modules/auth';
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 import { ClaimService } from './claim.service';
 import { ClaimConfirmRequestDto } from './dto/claim-confirm-request.dto';
@@ -15,20 +14,21 @@ import { ClaimInfoResponseDto } from './dto/claim-info-response.dto';
 export class ClaimController {
   constructor(
     private readonly claimService: ClaimService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly jwtService: JwtService
   ) {}
 
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @Get('claim/:token')
   async getClaimInfo(
     @Param('token') token: string,
-    @Req() req: Request
-  ): Promise<ClaimInfoResponseDto | { redirect: string }> {
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<ClaimInfoResponseDto | void> {
     const userId = await this.extractUserId(req);
 
     if (!userId) {
-      return { redirect: `/auth/login?redirect=/claim/${token}` };
+      res.redirect(302, `/auth/login?redirect=/claim/${token}`);
+      return;
     }
 
     return this.claimService.getClaimInfo(token);
@@ -50,9 +50,7 @@ export class ClaimController {
 
     try {
       const jwt = authHeader.slice(7);
-      const payload = await this.jwtService.verifyAsync<UserJwtPayload>(jwt, {
-        secret: this.configService.getOrThrow<string>('auth.userSecret'),
-      });
+      const payload = await this.jwtService.verifyAsync<UserJwtPayload>(jwt);
       return payload.sub;
     } catch {
       return null;

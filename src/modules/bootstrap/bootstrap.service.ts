@@ -1,5 +1,5 @@
 import { PrismaService, toPrismaJson } from '@core/prisma';
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClaimSessionStatus, DeviceClaimStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -89,7 +89,7 @@ export class BootstrapService {
     });
 
     if (!session) {
-      throw new NotFoundException('Session not found');
+      return { status: 'expired' };
     }
 
     if (session.status === ClaimSessionStatus.used) {
