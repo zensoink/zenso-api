@@ -2,6 +2,7 @@ import type { UserJwtPayload } from '@modules/auth';
 import { UserJwtAuthGuard } from '@modules/auth';
 import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 
@@ -35,6 +36,7 @@ export class ClaimController {
   }
 
   @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiBearerAuth('user-jwt')
   @UseGuards(UserJwtAuthGuard)
   @Post('claim/confirm')
   async confirmClaim(

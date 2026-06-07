@@ -1,8 +1,7 @@
 import { PrismaService, toPrismaJson } from '@core/prisma';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClaimSessionStatus, DeviceClaimStatus } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 
 import { BootstrapRequestDto } from './dto/bootstrap-request.dto';
@@ -17,28 +16,33 @@ export class BootstrapService {
   ) {}
 
   async bootstrap(dto: BootstrapRequestDto): Promise<BootstrapResponseDto> {
-    const device = await this.prisma.device.findUnique({
+    let device = await this.prisma.device.findUnique({
       where: { uid: dto.device_id },
     });
 
-    if (!device?.bootstrapSecretHash) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!device) {
+      device = await this.prisma.device.create({
+        data: {
+          uid: dto.device_id,
+          name: dto.device_id,
+          claimStatus: DeviceClaimStatus.pending,
+          firmwareVersion: dto.firmware_version,
+          hardwareInfoJson: dto.hardware_info ? toPrismaJson(dto.hardware_info) : undefined,
+          displayInfoJson: dto.display_info ? toPrismaJson(dto.display_info) : undefined,
+          lastBootstrapAt: new Date(),
+        },
+      });
+    } else {
+      await this.prisma.device.update({
+        where: { id: device.id },
+        data: {
+          lastBootstrapAt: new Date(),
+          firmwareVersion: dto.firmware_version,
+          hardwareInfoJson: dto.hardware_info ? toPrismaJson(dto.hardware_info) : undefined,
+          displayInfoJson: dto.display_info ? toPrismaJson(dto.display_info) : undefined,
+        },
+      });
     }
-
-    const tokenValid = await bcrypt.compare(dto.local_setup_token, device.bootstrapSecretHash);
-    if (!tokenValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    await this.prisma.device.update({
-      where: { id: device.id },
-      data: {
-        lastBootstrapAt: new Date(),
-        firmwareVersion: dto.firmware_version,
-        hardwareInfoJson: dto.hardware_info ? toPrismaJson(dto.hardware_info) : undefined,
-        displayInfoJson: dto.display_info ? toPrismaJson(dto.display_info) : undefined,
-      },
-    });
 
     if (device.claimStatus === DeviceClaimStatus.claimed) {
       return { claim_url: null, claim_session_id: null, claim_expires_at: null };
