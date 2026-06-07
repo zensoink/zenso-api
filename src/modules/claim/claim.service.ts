@@ -1,7 +1,8 @@
 import { PrismaService } from '@core/prisma';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ClaimSessionStatus, DeviceClaimStatus } from '@prisma/client';
-import { createHash } from 'crypto';
+import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 
 import { ClaimConfirmRequestDto } from './dto/claim-confirm-request.dto';
 import { ClaimConfirmResponseDto } from './dto/claim-confirm-response.dto';
@@ -69,6 +70,8 @@ export class ClaimService {
     }
 
     const now = new Date();
+    const rawSecret = randomBytes(32).toString('hex');
+    const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
 
     await this.prisma.$transaction([
       this.prisma.device.update({
@@ -77,6 +80,9 @@ export class ClaimService {
           userId,
           claimStatus: DeviceClaimStatus.claimed,
           claimedAt: now,
+          deviceSecretHash,
+          deviceTokenVersion: { increment: 1 },
+          postClaimSecret: rawSecret,
         },
       }),
       this.prisma.claimSession.update({

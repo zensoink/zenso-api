@@ -90,6 +90,7 @@ export class BootstrapService {
   async getClaimStatus(claimSessionId: number): Promise<ClaimStatusResponseDto> {
     const session = await this.prisma.claimSession.findUnique({
       where: { id: claimSessionId },
+      include: { device: true },
     });
 
     if (!session) {
@@ -97,7 +98,21 @@ export class BootstrapService {
     }
 
     if (session.status === ClaimSessionStatus.used) {
-      return { status: 'active' };
+      const uid = session.device.uid;
+      const postClaimSecret = session.device.postClaimSecret;
+
+      if (postClaimSecret) {
+        await this.prisma.device.update({
+          where: { id: session.device.id },
+          data: { postClaimSecret: null },
+        });
+      }
+
+      return {
+        status: 'active',
+        uid,
+        device_secret: postClaimSecret ?? undefined,
+      };
     }
 
     if (session.status === ClaimSessionStatus.cancelled) {

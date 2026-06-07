@@ -89,6 +89,7 @@ model Device {
   lastSeenAt          DateTime?
   firmwareVersion     String?
   deviceSecretHash    String?
+  postClaimSecret     String?
   deviceTokenVersion  Int          @default(1)
   revokedAt           DateTime?
 
