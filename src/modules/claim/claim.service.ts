@@ -68,8 +68,14 @@ export class ClaimService {
     const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
 
     const device = await this.prisma.$transaction(async tx => {
-      const newDevice = await tx.device.create({
-        data: {
+      const newDevice = await tx.device.upsert({
+        where: {
+          userId_hardwareId: {
+            userId,
+            hardwareId: session.hardwareId,
+          },
+        },
+        create: {
           hardwareId: session.hardwareId,
           name: session.hardwareId,
           userId,
@@ -79,6 +85,18 @@ export class ClaimService {
           deviceSecretHash,
           postClaimSecret: rawSecret,
           deviceTokenVersion: 1,
+          firmwareVersion: session.firmwareVersion,
+          hardwareInfoJson: session.hardwareInfoJson ?? undefined,
+          displayInfoJson: session.displayInfoJson ?? undefined,
+        },
+        update: {
+          claimStatus: DeviceClaimStatus.claimed,
+          claimedAt: now,
+          lastBootstrapAt: now,
+          deviceSecretHash,
+          postClaimSecret: rawSecret,
+          deviceTokenVersion: { increment: 1 },
+          revokedAt: null,
           firmwareVersion: session.firmwareVersion,
           hardwareInfoJson: session.hardwareInfoJson ?? undefined,
           displayInfoJson: session.displayInfoJson ?? undefined,

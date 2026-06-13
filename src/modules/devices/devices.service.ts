@@ -171,7 +171,7 @@ export class DevicesService {
     return {
       hardwareId: device.hardwareId,
       screenId: screen?.id ?? null,
-      imageUrl: screen ? `/devices/${device.hardwareId}/display` : null,
+      imageUrl: screen ? `/devices/display` : null,
       refreshRate: screen?.refreshRate ?? 300,
       width: device.width,
       height: device.height,
