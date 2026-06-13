@@ -1,4 +1,3 @@
-import type { UserJwtPayload } from '@modules/auth';
 import { UserJwtAuthGuard } from '@modules/auth';
 import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -25,7 +24,7 @@ export class ClaimController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ): Promise<ClaimInfoResponseDto | void> {
-    const userId = await this.extractUserId(req);
+    const userId = this.extractUserId(req);
 
     if (!userId) {
       res.redirect(302, `/auth/login?redirect=/claim/${token}`);
@@ -41,18 +40,18 @@ export class ClaimController {
   @Post('claim/confirm')
   async confirmClaim(
     @Body() dto: ClaimConfirmRequestDto,
-    @Req() req: { user: UserJwtPayload }
+    @Req() req: { user: { userId: number; email: string } }
   ): Promise<ClaimConfirmResponseDto> {
-    return this.claimService.confirmClaim(dto, req.user.sub);
+    return this.claimService.confirmClaim(dto, req.user.userId);
   }
 
-  private async extractUserId(req: Request): Promise<number | null> {
+  private extractUserId(req: Request): number | null {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) return null;
 
     try {
       const jwt = authHeader.slice(7);
-      const payload = await this.jwtService.verifyAsync<UserJwtPayload>(jwt);
+      const payload = this.jwtService.verify<{ sub: number }>(jwt);
       return payload.sub;
     } catch {
       return null;
