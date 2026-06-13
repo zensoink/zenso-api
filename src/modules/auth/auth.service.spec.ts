@@ -15,7 +15,7 @@ jest.mock('bcrypt', () => ({
 
 interface MockPrisma {
   user: { findUnique: jest.Mock };
-  device: { findUnique: jest.Mock };
+  device: { findMany: jest.Mock };
 }
 
 interface MockJwt {
@@ -38,7 +38,7 @@ describe('AuthService', () => {
 
   const mockDevice = {
     id: 1,
-    uid: 'device-001',
+    hardwareId: 'E072A1F93108',
     name: 'Test Device',
     width: 800,
     height: 480,
@@ -56,7 +56,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     mockPrismaService = {
       user: { findUnique: jest.fn() },
-      device: { findUnique: jest.fn() },
+      device: { findMany: jest.fn() },
     };
 
     mockJwtService = {
@@ -161,61 +161,76 @@ describe('AuthService', () => {
 
   describe('validateDevice', () => {
     it('should return device when credentials are valid', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrismaService.device.findMany.mockResolvedValue([mockDevice]);
       mockBcryptCompare.mockResolvedValue(true);
 
-      const result = await service.validateDevice('device-001', 'correct-secret');
+      const result = await service.validateDevice('E072A1F93108', 'correct-secret');
 
       expect(result).toEqual(mockDevice);
-      expect(mockPrismaService.device.findUnique).toHaveBeenCalledWith({
-        where: { uid: 'device-001' },
+      expect(mockPrismaService.device.findMany).toHaveBeenCalledWith({
+        where: { hardwareId: 'E072A1F93108', revokedAt: null },
       });
     });
 
-    it('should throw UnauthorizedException when device not found', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(null);
+    it('should throw UnauthorizedException when no devices found', async () => {
+      mockPrismaService.device.findMany.mockResolvedValue([]);
 
       await expect(service.validateDevice('unknown-device', 'secret')).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should throw UnauthorizedException when secret is wrong', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+    it('should throw UnauthorizedException when secret is wrong for all devices', async () => {
+      mockPrismaService.device.findMany.mockResolvedValue([mockDevice]);
       mockBcryptCompare.mockResolvedValue(false);
 
-      await expect(service.validateDevice('device-001', 'wrong-secret')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateDevice('E072A1F93108', 'wrong-secret')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException when device is revoked', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue({
-        ...mockDevice,
-        revokedAt: new Date(),
-      });
+      mockPrismaService.device.findMany.mockResolvedValue([]);
 
-      await expect(service.validateDevice('device-001', 'secret')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateDevice('E072A1F93108', 'secret')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException when device has no secret hash', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue({
-        ...mockDevice,
-        deviceSecretHash: null,
-      });
+      mockPrismaService.device.findMany.mockResolvedValue([{ ...mockDevice, deviceSecretHash: null }]);
+      mockBcryptCompare.mockResolvedValue(false);
 
-      await expect(service.validateDevice('device-001', 'secret')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateDevice('E072A1F93108', 'secret')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should iterate multiple devices until bcrypt matches', async () => {
+      const deviceWithoutSecret = { ...mockDevice, id: 1, deviceSecretHash: null };
+      const deviceWithWrongSecret = { ...mockDevice, id: 2, deviceSecretHash: '$2b$10$wronghash' };
+      const deviceWithCorrectSecret = { ...mockDevice, id: 3, deviceSecretHash: '$2b$10$correcthash' };
+
+      mockPrismaService.device.findMany.mockResolvedValue([
+        deviceWithoutSecret,
+        deviceWithWrongSecret,
+        deviceWithCorrectSecret,
+      ]);
+
+      mockBcryptCompare
+        .mockResolvedValueOnce(false) // deviceWithWrongSecret
+        .mockResolvedValueOnce(true); // deviceWithCorrectSecret
+
+      const result = await service.validateDevice('E072A1F93108', 'correct-secret');
+
+      expect(result.id).toBe(3);
     });
   });
 
   describe('deviceLogin', () => {
     it('should return access token when credentials are valid', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrismaService.device.findMany.mockResolvedValue([mockDevice]);
       mockBcryptCompare.mockResolvedValue(true);
 
-      const result = await service.deviceLogin('device-001', 'correct-secret');
+      const result = await service.deviceLogin('E072A1F93108', 'correct-secret');
 
       expect(result).toEqual({ accessToken: 'mock-access-token' });
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         {
           sub: mockDevice.id,
-          uid: mockDevice.uid,
+          hardwareId: mockDevice.hardwareId,
           type: 'device',
           tokenVersion: mockDevice.deviceTokenVersion,
         },

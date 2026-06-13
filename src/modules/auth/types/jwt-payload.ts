@@ -6,7 +6,7 @@ export interface UserJwtPayload {
 
 export interface DeviceJwtPayload {
   sub: number;
-  uid: string;
+  hardwareId: string;
   type: 'device';
   tokenVersion: number;
 }

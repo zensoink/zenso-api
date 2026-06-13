@@ -1,4 +1,4 @@
 export class ClaimConfirmResponseDto {
   success!: boolean;
-  device_uid!: string;
+  hardware_id!: string;
 }

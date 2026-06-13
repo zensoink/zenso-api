@@ -25,8 +25,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Device login' })
   @ApiBody({ type: DeviceLoginDto })
   @ApiResponse({ status: 200, description: 'Returns device JWT access token' })
-  @ApiResponse({ status: 401, description: 'Invalid uid or secret' })
+  @ApiResponse({ status: 401, description: 'Invalid hardwareId or secret' })
   async deviceLogin(@Body() dto: DeviceLoginDto) {
-    return this.authService.deviceLogin(dto.uid, dto.secret);
+    return this.authService.deviceLogin(dto.hardware_id, dto.secret);
   }
 }

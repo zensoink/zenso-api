@@ -88,8 +88,8 @@ export class ContextAggregationService {
           utcOffset: 7200,
         },
         device: {
-          id: screen.device?.uid ?? null,
-          friendlyId: screen.device?.uid ?? null,
+          id: screen.device?.hardwareId ?? null,
+          friendlyId: screen.device?.hardwareId ?? null,
           width: params.width,
           height: params.height,
           orientation,

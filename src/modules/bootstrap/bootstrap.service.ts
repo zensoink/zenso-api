@@ -1,7 +1,7 @@
 import { PrismaService, toPrismaJson } from '@core/prisma';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ClaimSessionStatus, DeviceClaimStatus } from '@prisma/client';
+import { BootstrapClaimStatus, ClaimSessionStatus } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 
 import { BootstrapRequestDto } from './dto/bootstrap-request.dto';
@@ -16,41 +16,11 @@ export class BootstrapService {
   ) {}
 
   async bootstrap(dto: BootstrapRequestDto): Promise<BootstrapResponseDto> {
-    let device = await this.prisma.device.findUnique({
-      where: { uid: dto.device_id },
-    });
-
-    if (!device) {
-      device = await this.prisma.device.create({
-        data: {
-          uid: dto.device_id,
-          name: dto.device_id,
-          claimStatus: DeviceClaimStatus.pending,
-          firmwareVersion: dto.firmware_version,
-          hardwareInfoJson: dto.hardware_info ? toPrismaJson(dto.hardware_info) : undefined,
-          displayInfoJson: dto.display_info ? toPrismaJson(dto.display_info) : undefined,
-          lastBootstrapAt: new Date(),
-        },
-      });
-    } else {
-      await this.prisma.device.update({
-        where: { id: device.id },
-        data: {
-          lastBootstrapAt: new Date(),
-          firmwareVersion: dto.firmware_version,
-          hardwareInfoJson: dto.hardware_info ? toPrismaJson(dto.hardware_info) : undefined,
-          displayInfoJson: dto.display_info ? toPrismaJson(dto.display_info) : undefined,
-        },
-      });
-    }
-
-    if (device.claimStatus === DeviceClaimStatus.claimed) {
-      return { claim_url: null, claim_session_id: null, claim_expires_at: null };
-    }
+    const hardwareId = dto.hardware_id;
 
     const existingSession = await this.prisma.claimSession.findFirst({
       where: {
-        deviceId: device.id,
+        hardwareId,
         status: ClaimSessionStatus.pending,
         expiresAt: { gt: new Date() },
       },
@@ -69,19 +39,20 @@ export class BootstrapService {
       }
       return tx.claimSession.create({
         data: {
-          deviceId: device.id,
+          hardwareId,
           nonceHash,
           status: ClaimSessionStatus.pending,
           expiresAt,
+          firmwareVersion: dto.firmware_version,
+          hardwareInfoJson: dto.hardware_info ? toPrismaJson(dto.hardware_info) : undefined,
+          displayInfoJson: dto.display_info ? toPrismaJson(dto.display_info) : undefined,
         },
       });
     });
 
     const baseUrl = this.configService.get<string>('app.baseUrl');
-    const claimUrl = `${baseUrl}/claim/${plaintextToken}`;
-
     return {
-      claim_url: claimUrl,
+      claim_url: `${baseUrl}/claim/${plaintextToken}`,
       claim_session_id: session.id,
       claim_expires_at: expiresAt.toISOString(),
     };
@@ -94,14 +65,14 @@ export class BootstrapService {
     });
 
     if (!session) {
-      return { status: 'expired' };
+      return { status: BootstrapClaimStatus.expired };
     }
 
     if (session.status === ClaimSessionStatus.used) {
-      const uid = session.device.uid;
-      const postClaimSecret = session.device.postClaimSecret;
+      const hardwareId = session.device?.hardwareId;
+      const postClaimSecret = session.device?.postClaimSecret;
 
-      if (postClaimSecret) {
+      if (postClaimSecret && session.device) {
         await this.prisma.device.update({
           where: { id: session.device.id },
           data: { postClaimSecret: null },
@@ -109,8 +80,8 @@ export class BootstrapService {
       }
 
       return {
-        status: 'active',
-        uid,
+        status: BootstrapClaimStatus.active,
+        hardware_id: hardwareId ?? undefined,
         device_secret: postClaimSecret ?? undefined,
       };
     }
@@ -120,7 +91,7 @@ export class BootstrapService {
         where: { id: session.id },
         data: { status: ClaimSessionStatus.expired },
       });
-      return { status: 'expired' };
+      return { status: BootstrapClaimStatus.expired };
     }
 
     if (session.expiresAt < new Date() && session.status === ClaimSessionStatus.pending) {
@@ -128,9 +99,9 @@ export class BootstrapService {
         where: { id: session.id },
         data: { status: ClaimSessionStatus.expired },
       });
-      return { status: 'expired' };
+      return { status: BootstrapClaimStatus.expired };
     }
 
-    return { status: session.status };
+    return { status: BootstrapClaimStatus.pending };
   }
 }

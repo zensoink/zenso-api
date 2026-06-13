@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class DeviceStatusResponseDto {
   @ApiProperty()
-  uid!: string;
+  hardwareId!: string;
 
   @ApiProperty()
   screenId!: number | null;

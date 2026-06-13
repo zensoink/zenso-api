@@ -39,6 +39,6 @@ export class DeviceJwtStrategy extends PassportStrategy(Strategy, 'device-jwt') 
       throw new UnauthorizedException('Token version outdated');
     }
 
-    return { deviceId: device.id, uid: device.uid, tokenVersion: device.deviceTokenVersion };
+    return { deviceId: device.id, hardwareId: device.hardwareId, tokenVersion: device.deviceTokenVersion };
   }
 }

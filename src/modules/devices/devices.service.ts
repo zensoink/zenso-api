@@ -1,7 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DeviceClaimStatus, Prisma } from '@prisma/client';
+import { DeviceClaimStatus, DeviceStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -13,8 +13,9 @@ import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
 export class DevicesService {
   private readonly DEVICE_SELECT: Prisma.DeviceSelect = {
     id: true,
-    uid: true,
+    hardwareId: true,
     name: true,
+    status: true,
     width: true,
     height: true,
     palette: true,
@@ -23,6 +24,9 @@ export class DevicesService {
     firmwareVersion: true,
     revokedAt: true,
     userId: true,
+    claimStatus: true,
+    claimedAt: true,
+    lastBootstrapAt: true,
     createdAt: true,
     updatedAt: true,
   };
@@ -38,6 +42,7 @@ export class DevicesService {
 
     const device = await this.prisma.device.create({
       data: {
+        hardwareId: crypto.randomBytes(6).toString('hex').toUpperCase(),
         name: dto.name,
         width: dto.width ?? 800,
         height: dto.height ?? 480,
@@ -52,14 +57,14 @@ export class DevicesService {
     return {
       device: {
         id: device.id,
-        uid: device.uid,
+        hardwareId: device.hardwareId,
         name: device.name,
+        status: device.status,
         width: device.width,
         height: device.height,
         palette: device.palette,
         deviceTokenVersion: device.deviceTokenVersion,
         userId: device.userId,
-        // bootstrapSecretHash is intentionally excluded — never expose hashed credentials in API responses
         claimStatus: device.claimStatus,
         createdAt: device.createdAt,
         updatedAt: device.updatedAt,
@@ -68,16 +73,17 @@ export class DevicesService {
     };
   }
 
-  async findAll() {
+  async findAll(userId: number) {
     return this.prisma.device.findMany({
+      where: { userId },
       select: this.DEVICE_SELECT,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findById(id: number) {
-    const device = await this.prisma.device.findUnique({
-      where: { id },
+  async findById(id: number, userId: number) {
+    const device = await this.prisma.device.findFirst({
+      where: { id, userId },
       select: this.DEVICE_SELECT,
     });
 
@@ -88,8 +94,8 @@ export class DevicesService {
     return device;
   }
 
-  async revoke(id: number) {
-    const device = await this.prisma.device.findUnique({ where: { id } });
+  async revoke(id: number, userId: number) {
+    const device = await this.prisma.device.findFirst({ where: { id, userId } });
     if (!device) {
       throw new NotFoundException('Device not found');
     }
@@ -103,9 +109,9 @@ export class DevicesService {
     return { deviceId: id, revokedAt };
   }
 
-  async checkIn(uid: string, dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
+  async checkIn(deviceId: number, dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
     const device = await this.prisma.device.findUnique({
-      where: { uid },
+      where: { id: deviceId },
       include: {
         screens: {
           where: { isActive: true },
@@ -132,6 +138,7 @@ export class DevicesService {
 
     const updateData: Record<string, unknown> = {
       lastSeenAt: new Date(),
+      status: DeviceStatus.active,
     };
 
     if (dto.firmwareVersion !== undefined) {
@@ -139,7 +146,7 @@ export class DevicesService {
     }
 
     await this.prisma.device.update({
-      where: { uid },
+      where: { id: deviceId },
       data: updateData,
     });
 
@@ -162,9 +169,9 @@ export class DevicesService {
     }
 
     return {
-      uid: device.uid,
+      hardwareId: device.hardwareId,
       screenId: screen?.id ?? null,
-      imageUrl: screen ? `/devices/${uid}/display` : null,
+      imageUrl: screen ? `/devices/${device.hardwareId}/display` : null,
       refreshRate: screen?.refreshRate ?? 300,
       width: device.width,
       height: device.height,
@@ -175,8 +182,8 @@ export class DevicesService {
     };
   }
 
-  async rotateSecret(id: number) {
-    const device = await this.prisma.device.findUnique({ where: { id } });
+  async rotateSecret(id: number, userId: number) {
+    const device = await this.prisma.device.findFirst({ where: { id, userId } });
 
     if (!device) {
       throw new NotFoundException('Device not found');

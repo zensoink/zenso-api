@@ -113,12 +113,12 @@ describe('AuthController', () => {
 
       const res = await request(app.getHttpServer())
         .post('/auth/device/login')
-        .send({ uid: 'device-001', secret: 'valid-secret' })
+        .send({ hardware_id: 'E072A1F93108', secret: 'valid-secret' })
         .expect(200);
 
       const body = asAccessTokenResponse(res.body);
       expect(body).toEqual({ accessToken: 'mock-device-token' });
-      expect(mockAuthService.deviceLogin).toHaveBeenCalledWith('device-001', 'valid-secret');
+      expect(mockAuthService.deviceLogin).toHaveBeenCalledWith('E072A1F93108', 'valid-secret');
     });
 
     it('should return 401 when credentials are invalid', async () => {
@@ -126,14 +126,14 @@ describe('AuthController', () => {
 
       const res = await request(app.getHttpServer())
         .post('/auth/device/login')
-        .send({ uid: 'device-001', secret: 'wrong-secret' })
+        .send({ hardware_id: 'E072A1F93108', secret: 'wrong-secret' })
         .expect(401);
 
       const body = asMessageResponse(res.body);
       expect(body.message).toBeDefined();
     });
 
-    it('should return 400 when uid is missing', async () => {
+    it('should return 400 when hardware_id is missing', async () => {
       const res = await request(app.getHttpServer())
         .post('/auth/device/login')
         .send({ secret: 'valid-secret' })
@@ -144,7 +144,10 @@ describe('AuthController', () => {
     });
 
     it('should return 400 when secret is missing', async () => {
-      const res = await request(app.getHttpServer()).post('/auth/device/login').send({ uid: 'device-001' }).expect(400);
+      const res = await request(app.getHttpServer())
+        .post('/auth/device/login')
+        .send({ hardware_id: 'E072A1F93108' })
+        .expect(400);
 
       const body = asMessageResponse(res.body);
       expect(body.message).toBeDefined();

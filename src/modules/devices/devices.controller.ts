@@ -61,11 +61,11 @@ export class DevicesController {
 
   @Get()
   @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({ summary: 'List all devices' })
+  @ApiOperation({ summary: 'List user devices' })
   @ApiBearerAuth('user-jwt')
-  @ApiOkResponse({ type: DeviceResponseDto, isArray: true, description: 'List of devices' })
-  findAll() {
-    return this.devicesService.findAll();
+  @ApiOkResponse({ type: DeviceResponseDto, isArray: true, description: 'List of user devices' })
+  findAll(@Req() req: { user: { userId: number } }) {
+    return this.devicesService.findAll(req.user.userId);
   }
 
   @Get(':id')
@@ -74,8 +74,8 @@ export class DevicesController {
   @ApiBearerAuth('user-jwt')
   @ApiOkResponse({ type: DeviceResponseDto, description: 'Device details' })
   @ApiResponse({ status: 404, description: 'Device not found' })
-  findById(@Param('id', ParseIntPipe) id: number) {
-    return this.devicesService.findById(id);
+  findById(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.findById(id, req.user.userId);
   }
 
   @Delete(':id')
@@ -85,14 +85,11 @@ export class DevicesController {
   @HttpCode(HttpStatus.OK)
   @ApiResponse({ status: 200, description: 'Device revoked' })
   @ApiResponse({ status: 404, description: 'Device not found' })
-  revoke(@Param('id', ParseIntPipe) id: number) {
-    return this.devicesService.revoke(id);
+  revoke(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.revoke(id, req.user.userId);
   }
 
-  // Uses @Res() (no passthrough) for full manual response control:
-  // - 304 sends no body via res.status(304).end()
-  // - 200 sends the buffer via res.status(200).send(buffer)
-  @Get(':uid/display')
+  @Get('display')
   @UseGuards(DeviceJwtAuthGuard)
   @ApiOperation({ summary: 'Get rendered display image for device' })
   @ApiBearerAuth('device-jwt')
@@ -100,7 +97,7 @@ export class DevicesController {
   @ApiResponse({ status: 304, description: 'Not modified (ETag match)' })
   @ApiHeader({ name: 'if-none-match', required: false, description: 'ETag from previous response' })
   async getDisplay(
-    @Param('uid') uid: string,
+    @Req() req: { user: { deviceId: number } },
     @Res() res: Response,
     @Query('format') formatParam?: string,
     @Headers('if-none-match') ifNoneMatch?: string
@@ -112,7 +109,7 @@ export class DevicesController {
     }
 
     const device = await this.prisma.device.findUnique({
-      where: { uid },
+      where: { id: req.user.deviceId },
       include: {
         screens: {
           where: { isActive: true },
@@ -153,7 +150,6 @@ export class DevicesController {
     res.set('Content-Disposition', `attachment; filename="display.${format === 'preview' ? 'png' : 'raw'}"`);
     res.status(200).send(buffer);
 
-    // Fire-and-forget: persist contentHash after successful delivery
     this.prisma.screen
       .update({
         where: { id: screen.id },
@@ -164,7 +160,7 @@ export class DevicesController {
       });
   }
 
-  @Post(':uid/check-in')
+  @Post('check-in')
   @UseGuards(DeviceJwtAuthGuard)
   @ApiOperation({ summary: 'Device check-in to report status and receive config' })
   @ApiBearerAuth('device-jwt')
@@ -173,8 +169,11 @@ export class DevicesController {
     type: DeviceStatusResponseDto,
     description: 'Check-in accepted, returns config and next refresh interval',
   })
-  async checkIn(@Param('uid') uid: string, @Body() dto: DeviceCheckInDto): Promise<DeviceStatusResponseDto> {
-    return this.devicesService.checkIn(uid, dto);
+  async checkIn(
+    @Req() req: { user: { deviceId: number } },
+    @Body() dto: DeviceCheckInDto
+  ): Promise<DeviceStatusResponseDto> {
+    return this.devicesService.checkIn(req.user.deviceId, dto);
   }
 
   @Post(':id/rotate-secret')
@@ -183,7 +182,7 @@ export class DevicesController {
   @ApiOperation({ summary: 'Rotate device secret (admin)' })
   @ApiBearerAuth('user-jwt')
   @ApiOkResponse({ type: RotateDeviceSecretResponseDto, description: 'Device secret rotated' })
-  async rotateSecret(@Param('id', ParseIntPipe) id: number) {
-    return this.devicesService.rotateSecret(id);
+  async rotateSecret(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.rotateSecret(id, req.user.userId);
   }
 }

@@ -17,7 +17,6 @@ export class ClaimService {
 
     const session = await this.prisma.claimSession.findUnique({
       where: { nonceHash },
-      include: { device: true },
     });
 
     if (!session) {
@@ -40,7 +39,7 @@ export class ClaimService {
 
     return {
       claim_session_id: session.id,
-      device_uid: session.device.uid,
+      hardware_id: session.hardwareId,
       expires_at: session.expiresAt.toISOString(),
     };
   }
@@ -50,7 +49,6 @@ export class ClaimService {
 
     const session = await this.prisma.claimSession.findUnique({
       where: { nonceHash },
-      include: { device: true },
     });
 
     if (!session) {
@@ -65,36 +63,50 @@ export class ClaimService {
       throw new ConflictException('Claim session already used or expired');
     }
 
-    if (session.device.claimStatus === DeviceClaimStatus.claimed) {
-      throw new ConflictException('Device already claimed');
-    }
-
     const now = new Date();
     const rawSecret = randomBytes(32).toString('hex');
     const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
 
-    await this.prisma.$transaction([
-      this.prisma.device.update({
-        where: { id: session.deviceId },
+    const device = await this.prisma.$transaction(async tx => {
+      const newDevice = await tx.device.create({
         data: {
+          hardwareId: session.hardwareId,
+          name: session.hardwareId,
           userId,
           claimStatus: DeviceClaimStatus.claimed,
           claimedAt: now,
+          lastBootstrapAt: now,
           deviceSecretHash,
-          deviceTokenVersion: { increment: 1 },
           postClaimSecret: rawSecret,
+          deviceTokenVersion: 1,
+          firmwareVersion: session.firmwareVersion,
+          hardwareInfoJson: session.hardwareInfoJson ?? undefined,
+          displayInfoJson: session.displayInfoJson ?? undefined,
         },
-      }),
-      this.prisma.claimSession.update({
+      });
+
+      await tx.claimSession.update({
         where: { id: session.id },
         data: {
           status: ClaimSessionStatus.used,
           usedAt: now,
           claimedByUserId: userId,
+          deviceId: newDevice.id,
         },
-      }),
-    ]);
+      });
 
-    return { success: true, device_uid: session.device.uid };
+      await tx.device.updateMany({
+        where: {
+          hardwareId: session.hardwareId,
+          id: { not: newDevice.id },
+          revokedAt: null,
+        },
+        data: { revokedAt: now },
+      });
+
+      return newDevice;
+    });
+
+    return { success: true, hardware_id: device.hardwareId };
   }
 }
