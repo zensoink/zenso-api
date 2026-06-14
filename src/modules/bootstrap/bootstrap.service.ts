@@ -1,7 +1,7 @@
 import { PrismaService, toPrismaJson } from '@core/prisma';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BootstrapClaimStatus, ClaimSessionStatus } from '@prisma/client';
+import { BootstrapClaimStatus, ClaimSessionStatus, DeviceClaimStatus } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 
 import { BootstrapRequestDto } from './dto/bootstrap-request.dto';
@@ -17,6 +17,14 @@ export class BootstrapService {
 
   async bootstrap(dto: BootstrapRequestDto): Promise<BootstrapResponseDto> {
     const hardwareId = dto.hardware_id;
+
+    const claimedDevice = await this.prisma.device.findFirst({
+      where: { hardwareId, claimStatus: DeviceClaimStatus.claimed, revokedAt: null },
+    });
+
+    if (claimedDevice) {
+      return { claim_url: null, claim_session_id: null, claim_expires_at: null };
+    }
 
     const existingSession = await this.prisma.claimSession.findFirst({
       where: {
@@ -69,8 +77,8 @@ export class BootstrapService {
     }
 
     if (session.status === ClaimSessionStatus.used) {
-      const hardwareId = session.device?.hardwareId;
-      const postClaimSecret = session.device?.postClaimSecret;
+      const hardwareId = session.device?.hardwareId ?? session.hardwareId;
+      const postClaimSecret = session.device?.postClaimSecret ?? null;
 
       if (postClaimSecret && session.device) {
         await this.prisma.device.update({
@@ -81,7 +89,7 @@ export class BootstrapService {
 
       return {
         status: BootstrapClaimStatus.active,
-        hardware_id: hardwareId ?? undefined,
+        hardware_id: hardwareId,
         device_secret: postClaimSecret ?? undefined,
       };
     }

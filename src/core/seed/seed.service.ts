@@ -50,7 +50,7 @@ export class SeedService implements OnApplicationBootstrap {
     const device = await this.prisma.device.create({
       data: {
         name: 'Demo Device',
-        hardwareId: 'demo-device-001',
+        hardwareId: 'AABBCCDDEEFF',
         width: 800,
         height: 480,
         userId: user.id,
