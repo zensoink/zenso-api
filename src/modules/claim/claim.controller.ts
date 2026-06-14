@@ -40,9 +40,9 @@ export class ClaimController {
   @Post('claim/confirm')
   async confirmClaim(
     @Body() dto: ClaimConfirmRequestDto,
-    @Req() req: { user: { userId: number; email: string } }
+    @Req() req: { user: { sub: number } }
   ): Promise<ClaimConfirmResponseDto> {
-    return this.claimService.confirmClaim(dto, req.user.userId);
+    return this.claimService.confirmClaim(dto, req.user.sub);
   }
 
   private extractUserId(req: Request): number | null {

@@ -192,7 +192,7 @@ describe('DevicesService', () => {
 
       const result = await service.checkIn(1, {});
 
-      expect(result.imageUrl).toBe('/devices/E072A1F93108/display');
+      expect(result.imageUrl).toBe('/devices/display');
     });
 
     it('should use screen palette when screen exists', async () => {
