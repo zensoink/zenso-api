@@ -1,5 +1,6 @@
 import { UserJwtAuthGuard } from '@modules/auth';
 import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -14,7 +15,8 @@ import { ClaimInfoResponseDto } from './dto/claim-info-response.dto';
 export class ClaimController {
   constructor(
     private readonly claimService: ClaimService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService
   ) {}
 
   @Throttle({ default: { ttl: 60000, limit: 20 } })
@@ -40,9 +42,9 @@ export class ClaimController {
   @Post('claim/confirm')
   async confirmClaim(
     @Body() dto: ClaimConfirmRequestDto,
-    @Req() req: { user: { sub: number } }
+    @Req() req: { user: { userId: number } }
   ): Promise<ClaimConfirmResponseDto> {
-    return this.claimService.confirmClaim(dto, req.user.sub);
+    return this.claimService.confirmClaim(dto, req.user.userId);
   }
 
   private extractUserId(req: Request): number | null {
@@ -51,7 +53,8 @@ export class ClaimController {
 
     try {
       const jwt = authHeader.slice(7);
-      const payload = this.jwtService.verify<{ sub: number }>(jwt);
+      const secret = this.configService.getOrThrow<string>('auth.userSecret');
+      const payload = this.jwtService.verify<{ sub: number }>(jwt, { secret });
       return payload.sub;
     } catch {
       return null;

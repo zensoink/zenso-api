@@ -1,7 +1,7 @@
 import { PluginImportService } from '@modules/plugins';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeviceClaimStatus } from '@prisma/client';
+import { DeviceClaimStatus, DeviceStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -57,6 +57,7 @@ export class SeedService implements OnApplicationBootstrap {
         deviceSecretHash,
         claimStatus: DeviceClaimStatus.claimed,
         claimedAt: new Date(),
+        status: DeviceStatus.active,
       },
     });
 

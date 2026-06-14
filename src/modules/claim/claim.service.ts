@@ -90,6 +90,7 @@ export class ClaimService {
           displayInfoJson: session.displayInfoJson ?? undefined,
         },
         update: {
+          userId,
           claimStatus: DeviceClaimStatus.claimed,
           claimedAt: now,
           lastBootstrapAt: now,
