@@ -66,9 +66,13 @@ export class BootstrapService {
     };
   }
 
-  async getClaimStatus(claimSessionId: number): Promise<ClaimStatusResponseDto> {
+  async getClaimStatus(claimSessionId: string): Promise<ClaimStatusResponseDto> {
+    const id = parseInt(claimSessionId, 10);
+    if (isNaN(id)) {
+      return { status: BootstrapClaimStatus.expired };
+    }
     const session = await this.prisma.claimSession.findUnique({
-      where: { id: claimSessionId },
+      where: { id },
       include: { device: true },
     });
 

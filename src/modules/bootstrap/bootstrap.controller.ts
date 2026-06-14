@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
 import { BootstrapService } from './bootstrap.service';
@@ -18,7 +18,7 @@ export class BootstrapController {
 
   @Throttle({ default: { ttl: 60000, limit: 30 } })
   @Get('claim-status/:claimSessionId')
-  async getClaimStatus(@Param('claimSessionId', ParseIntPipe) claimSessionId: number): Promise<ClaimStatusResponseDto> {
+  async getClaimStatus(@Param('claimSessionId') claimSessionId: string): Promise<ClaimStatusResponseDto> {
     return this.bootstrapService.getClaimStatus(claimSessionId);
   }
 }
