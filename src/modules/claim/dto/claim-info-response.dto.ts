@@ -1,5 +1,5 @@
 export class ClaimInfoResponseDto {
   claim_session_id!: number;
-  device_uid!: string;
+  hardware_id!: string;
   expires_at!: string;
 }

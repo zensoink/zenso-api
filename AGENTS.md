@@ -124,6 +124,28 @@ export class XxxModule {}
 - Plain classes (not interfaces)
 - No validation decorators in current codebase (add as needed)
 
+### Prisma Enums
+
+Always import Prisma enums from `@prisma/client` — never use raw string literals.
+
+```typescript
+// Correct
+import { DeviceStatus, DeviceClaimStatus } from '@prisma/client';
+
+device.status = DeviceStatus.active;
+device.claimStatus = DeviceClaimStatus.claimed;
+if (session.status === ClaimSessionStatus.pending) { ... }
+
+// Wrong — raw string literals
+device.status = 'active';
+device.claimStatus = 'claimed';
+if (session.status === 'pending') { ... }
+```
+
+When a DTO at the API boundary represents a derived/synthetic status not stored directly in any DB column, define a dedicated Prisma enum for it (e.g. `BootstrapClaimStatus`) to keep all enum references consistent and type-safe.
+
+---
+
 ### Prisma Patterns
 
 - Inject `PrismaService` into services (not PrismaClient directly)

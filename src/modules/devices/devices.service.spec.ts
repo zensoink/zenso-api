@@ -2,6 +2,7 @@ import { PrismaService } from '@core/prisma';
 import { RenderCacheService } from '@modules/render';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DeviceClaimStatus, DeviceStatus } from '@prisma/client';
 
 import { DevicesService } from './devices.service';
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
@@ -11,6 +12,7 @@ describe('DevicesService', () => {
   let mockPrismaService: {
     device: {
       findUnique: jest.Mock;
+      findFirst: jest.Mock;
       update: jest.Mock;
     };
   };
@@ -20,8 +22,9 @@ describe('DevicesService', () => {
 
   const mockDevice = {
     id: 1,
-    uid: 'device-123',
+    hardwareId: 'E072A1F93108',
     name: 'Test Device',
+    status: DeviceStatus.active,
     width: 800,
     height: 480,
     palette: ['#000000', '#ffffff'],
@@ -33,6 +36,9 @@ describe('DevicesService', () => {
     deviceSecretHash: '$2b$10$somehash',
     deviceTokenVersion: 1,
     revokedAt: null,
+    claimStatus: DeviceClaimStatus.claimed,
+    claimedAt: null,
+    lastBootstrapAt: null,
   };
 
   const mockScreen = {
@@ -69,6 +75,7 @@ describe('DevicesService', () => {
     mockPrismaService = {
       device: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
       },
     };
@@ -96,19 +103,20 @@ describe('DevicesService', () => {
     it('should throw NotFoundException when device not found', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(null);
 
-      await expect(service.checkIn('non-existent', {})).rejects.toThrow(NotFoundException);
+      await expect(service.checkIn(999, {})).rejects.toThrow(NotFoundException);
     });
 
     it('should update lastSeenAt on every call', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue({ ...mockDevice, screens: [] });
 
-      await service.checkIn('device-123', {});
+      await service.checkIn(1, {});
 
       expect(mockPrismaService.device.update).toHaveBeenCalledWith({
-        where: { uid: 'device-123' },
+        where: { id: 1 },
         /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         data: expect.objectContaining({
           lastSeenAt: expect.any(Date),
+          status: DeviceStatus.active,
         }),
         /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       });
@@ -118,26 +126,28 @@ describe('DevicesService', () => {
       mockPrismaService.device.findUnique.mockResolvedValue({ ...mockDevice, screens: [] });
       const dto: DeviceCheckInDto = { firmwareVersion: '2.0.0' };
 
-      await service.checkIn('device-123', dto);
+      await service.checkIn(1, dto);
 
       expect(mockPrismaService.device.update).toHaveBeenCalledWith({
-        where: { uid: 'device-123' },
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: { id: 1 },
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         data: expect.objectContaining({
           firmwareVersion: '2.0.0',
         }),
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       });
     });
 
     it('should not overwrite firmwareVersion when not provided in DTO', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue({ ...mockDevice, screens: [] });
 
-      await service.checkIn('device-123', {});
+      await service.checkIn(1, {});
 
       expect(mockPrismaService.device.update).toHaveBeenCalledWith({
-        where: { uid: 'device-123' },
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: { id: 1 },
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         data: expect.not.objectContaining({ firmwareVersion: expect.anything() }),
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       });
     });
 
@@ -147,7 +157,7 @@ describe('DevicesService', () => {
         screens: [{ ...mockScreen, slots: [] }],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.hasImage).toBe(false);
     });
@@ -158,7 +168,7 @@ describe('DevicesService', () => {
         screens: [mockScreen],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.hasImage).toBe(true);
     });
@@ -169,7 +179,7 @@ describe('DevicesService', () => {
         screens: [],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.imageUrl).toBeNull();
     });
@@ -180,9 +190,9 @@ describe('DevicesService', () => {
         screens: [mockScreen],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
-      expect(result.imageUrl).toBe('/devices/device-123/display');
+      expect(result.imageUrl).toBe('/devices/display');
     });
 
     it('should use screen palette when screen exists', async () => {
@@ -191,7 +201,7 @@ describe('DevicesService', () => {
         screens: [mockScreen],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.palette).toEqual(['#111111', '#222222']);
     });
@@ -202,12 +212,10 @@ describe('DevicesService', () => {
         screens: [],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.palette).toEqual(['#000000', '#ffffff']);
     });
-
-    // --- contentChanged tests ---
 
     it('should return contentChanged: true when screen.contentHash is null', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue({
@@ -215,7 +223,7 @@ describe('DevicesService', () => {
         screens: [{ ...mockScreen, contentHash: null }],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.contentChanged).toBe(true);
     });
@@ -227,7 +235,7 @@ describe('DevicesService', () => {
         screens: [{ ...mockScreen, contentHash: 'old-key' }],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.contentChanged).toBe(true);
     });
@@ -239,12 +247,10 @@ describe('DevicesService', () => {
         screens: [{ ...mockScreen, contentHash: 'matching-key' }],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.contentChanged).toBe(false);
     });
-
-    // --- refreshRate tests ---
 
     it('should use screen.refreshRate when screen exists', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue({
@@ -252,7 +258,7 @@ describe('DevicesService', () => {
         screens: [{ ...mockScreen, refreshRate: 600 }],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.refreshRate).toBe(600);
     });
@@ -263,7 +269,7 @@ describe('DevicesService', () => {
         screens: [],
       });
 
-      const result = await service.checkIn('device-123', {});
+      const result = await service.checkIn(1, {});
 
       expect(result.refreshRate).toBe(300);
     });
@@ -271,20 +277,20 @@ describe('DevicesService', () => {
 
   describe('rotateSecret', () => {
     it('should rotate secret and increment token version', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrismaService.device.findFirst.mockResolvedValue(mockDevice);
       mockPrismaService.device.update.mockResolvedValue({ ...mockDevice, deviceTokenVersion: 2 });
 
-      const result = await service.rotateSecret(1);
+      const result = await service.rotateSecret(1, 1);
 
-      expect(mockPrismaService.device.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrismaService.device.findFirst).toHaveBeenCalledWith({ where: { id: 1, userId: 1 } });
       expect(mockPrismaService.device.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         data: expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           deviceSecretHash: expect.any(String),
           deviceTokenVersion: { increment: 1 },
         }),
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       });
       expect(result.id).toBe(1);
       expect(result.rawSecret).toBeDefined();
@@ -293,9 +299,9 @@ describe('DevicesService', () => {
     });
 
     it('should throw NotFoundException when device does not exist', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue(null);
+      mockPrismaService.device.findFirst.mockResolvedValue(null);
 
-      await expect(service.rotateSecret(999)).rejects.toThrow(NotFoundException);
+      await expect(service.rotateSecret(999, 1)).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { PluginImportService } from '@modules/plugins';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DeviceClaimStatus, DeviceStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -49,11 +50,14 @@ export class SeedService implements OnApplicationBootstrap {
     const device = await this.prisma.device.create({
       data: {
         name: 'Demo Device',
-        uid: 'demo-device-001',
+        hardwareId: 'AABBCCDDEEFF',
         width: 800,
         height: 480,
         userId: user.id,
         deviceSecretHash,
+        claimStatus: DeviceClaimStatus.claimed,
+        claimedAt: new Date(),
+        status: DeviceStatus.active,
       },
     });
 

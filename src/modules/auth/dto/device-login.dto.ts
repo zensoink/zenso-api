@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class DeviceLoginDto {
   @IsString()
   @IsNotEmpty()
-  uid!: string;
+  hardware_id!: string;
 
   @IsString()
   @IsNotEmpty()

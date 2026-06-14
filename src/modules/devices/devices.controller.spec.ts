@@ -9,6 +9,7 @@ import { DevicesService } from './devices.service';
 
 const MOCK_PNG_KEY = 'abc123def456abc123def456abc123de';
 const MOCK_RAW_KEY = 'def789ghi012def789ghi012def789gh';
+const MOCK_DEVICE_ID = 1;
 
 function mockExpressResponse() {
   return {
@@ -17,6 +18,10 @@ function mockExpressResponse() {
     send: jest.fn().mockReturnThis(),
     end: jest.fn().mockReturnThis(),
   };
+}
+
+function mockDeviceRequest(deviceId = MOCK_DEVICE_ID) {
+  return { user: { deviceId } };
 }
 
 describe('DevicesController', () => {
@@ -40,7 +45,7 @@ describe('DevicesController', () => {
 
   const mockDevice = {
     id: 1,
-    uid: 'device-123',
+    hardwareId: 'E072A1F93108',
     name: 'Test Device',
     width: 800,
     height: 480,
@@ -101,11 +106,12 @@ describe('DevicesController', () => {
     it('should return device display via renderPreview when format=png', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', undefined);
+      await controller.getDisplay(req, res as never, 'png', undefined);
 
       expect(mockPrismaService.device.findUnique).toHaveBeenCalledWith({
-        where: { uid: 'device-123' },
+        where: { id: MOCK_DEVICE_ID },
         include: {
           screens: {
             where: { isActive: true },
@@ -122,8 +128,9 @@ describe('DevicesController', () => {
     it('should return device display via renderForDevice when format=raw', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'raw', undefined);
+      await controller.getDisplay(req, res as never, 'raw', undefined);
 
       expect(mockRenderOrchestratorService.renderForDevice).toHaveBeenCalledWith(1);
       expect(mockRenderOrchestratorService.renderPreview).not.toHaveBeenCalled();
@@ -133,8 +140,9 @@ describe('DevicesController', () => {
     it('should default to renderForDevice when format is not specified', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, undefined, undefined);
+      await controller.getDisplay(req, res as never, undefined, undefined);
 
       expect(mockRenderOrchestratorService.renderForDevice).toHaveBeenCalledWith(1);
     });
@@ -142,8 +150,9 @@ describe('DevicesController', () => {
     it('should throw NotFoundException when device not found', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(null);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await expect(controller.getDisplay('non-existent', res as never, undefined, undefined)).rejects.toThrow(
+      await expect(controller.getDisplay(req as never, res as never, undefined, undefined)).rejects.toThrow(
         NotFoundException
       );
     });
@@ -154,8 +163,9 @@ describe('DevicesController', () => {
         screens: [],
       });
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await expect(controller.getDisplay('device-123', res as never, undefined, undefined)).rejects.toThrow(
+      await expect(controller.getDisplay(req as never, res as never, undefined, undefined)).rejects.toThrow(
         NotFoundException
       );
     });
@@ -163,19 +173,19 @@ describe('DevicesController', () => {
     it('should throw BadRequestException when format is invalid', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await expect(controller.getDisplay('device-123', res as never, 'bmp', undefined)).rejects.toThrow(
+      await expect(controller.getDisplay(req as never, res as never, 'bmp', undefined)).rejects.toThrow(
         BadRequestException
       );
     });
 
-    // --- ETag / caching test cases ---
-
     it('should return 200 with buffer when If-None-Match is not present', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, undefined, undefined);
+      await controller.getDisplay(req, res as never, undefined, undefined);
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
@@ -184,8 +194,9 @@ describe('DevicesController', () => {
     it('should return ETag header derived from contentKey in 200 response', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', undefined);
+      await controller.getDisplay(req, res as never, 'png', undefined);
 
       expect(res.set).toHaveBeenCalledWith('ETag', '"' + MOCK_PNG_KEY.slice(0, 32) + '"');
     });
@@ -193,8 +204,9 @@ describe('DevicesController', () => {
     it('should return Last-Modified header matching screen.updatedAt', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', undefined);
+      await controller.getDisplay(req, res as never, 'png', undefined);
 
       const expected = mockDevice.screens[0].updatedAt.toUTCString();
       expect(res.set).toHaveBeenCalledWith('Last-Modified', expected);
@@ -204,9 +216,10 @@ describe('DevicesController', () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res1 = mockExpressResponse();
       const res2 = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res1 as never, 'png', undefined);
-      await controller.getDisplay('device-123', res2 as never, 'png', undefined);
+      await controller.getDisplay(req, res1 as never, 'png', undefined);
+      await controller.getDisplay(req, res2 as never, 'png', undefined);
 
       const expected = mockDevice.screens[0].updatedAt.toUTCString();
       expect(res1.set).toHaveBeenCalledWith('Last-Modified', expected);
@@ -216,9 +229,10 @@ describe('DevicesController', () => {
     it('should return 304 with no body when If-None-Match matches current ETag', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
       const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
 
-      await controller.getDisplay('device-123', res as never, 'png', etag);
+      await controller.getDisplay(req, res as never, 'png', etag);
 
       expect(res.status).toHaveBeenCalledWith(304);
       expect(res.end).toHaveBeenCalled();
@@ -228,8 +242,9 @@ describe('DevicesController', () => {
     it('should return 200 when If-None-Match does not match current ETag', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', '"non-matching-etag"');
+      await controller.getDisplay(req, res as never, 'png', '"non-matching-etag"');
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
@@ -238,9 +253,10 @@ describe('DevicesController', () => {
     it('should include ETag header in 304 response', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
       const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
 
-      await controller.getDisplay('device-123', res as never, 'png', etag);
+      await controller.getDisplay(req, res as never, 'png', etag);
 
       expect(res.set).toHaveBeenCalledWith('ETag', etag);
       expect(res.status).toHaveBeenCalledWith(304);
@@ -249,8 +265,9 @@ describe('DevicesController', () => {
     it('should set Content-Type to image/png when format=png', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', undefined);
+      await controller.getDisplay(req, res as never, 'png', undefined);
 
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'image/png');
     });
@@ -258,8 +275,9 @@ describe('DevicesController', () => {
     it('should set Content-Type to application/octet-stream when format=raw', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'raw', undefined);
+      await controller.getDisplay(req, res as never, 'raw', undefined);
 
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'application/octet-stream');
     });
@@ -267,8 +285,9 @@ describe('DevicesController', () => {
     it('should set Content-Disposition header correctly for png', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', undefined);
+      await controller.getDisplay(req, res as never, 'png', undefined);
 
       expect(res.set).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="display.png"');
     });
@@ -276,19 +295,19 @@ describe('DevicesController', () => {
     it('should set Content-Disposition header correctly for raw', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'raw', undefined);
+      await controller.getDisplay(req, res as never, 'raw', undefined);
 
       expect(res.set).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="display.raw"');
     });
 
-    // --- contentHash persistence tests ---
-
     it('should persist contentHash in Prisma after 200 response', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
 
-      await controller.getDisplay('device-123', res as never, 'png', undefined);
+      await controller.getDisplay(req, res as never, 'png', undefined);
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(mockPrismaService.screen.update).toHaveBeenCalledWith({
@@ -300,9 +319,10 @@ describe('DevicesController', () => {
     it('should NOT persist contentHash after 304 response', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
       const res = mockExpressResponse();
+      const req = mockDeviceRequest();
       const etag = '"' + MOCK_PNG_KEY.slice(0, 32) + '"';
 
-      await controller.getDisplay('device-123', res as never, 'png', etag);
+      await controller.getDisplay(req, res as never, 'png', etag);
 
       expect(res.status).toHaveBeenCalledWith(304);
       expect(mockPrismaService.screen.update).not.toHaveBeenCalled();
@@ -310,14 +330,15 @@ describe('DevicesController', () => {
   });
 
   describe('checkIn', () => {
-    it('should call devicesService.checkIn with uid and body', async () => {
+    it('should call devicesService.checkIn with deviceId from JWT', async () => {
       const dto = { firmwareVersion: '1.0.0' };
-      mockDevicesService.checkIn.mockResolvedValue({ uid: 'device-123', contentChanged: false });
+      const req = mockDeviceRequest(MOCK_DEVICE_ID);
+      mockDevicesService.checkIn.mockResolvedValue({ hardwareId: 'E072A1F93108', contentChanged: false });
 
-      const result = await controller.checkIn('device-123', dto);
+      const result = await controller.checkIn(req, dto);
 
-      expect(mockDevicesService.checkIn).toHaveBeenCalledWith('device-123', dto);
-      expect(result).toEqual({ uid: 'device-123', contentChanged: false });
+      expect(mockDevicesService.checkIn).toHaveBeenCalledWith(MOCK_DEVICE_ID, dto);
+      expect(result).toEqual({ hardwareId: 'E072A1F93108', contentChanged: false });
     });
   });
 
@@ -325,9 +346,9 @@ describe('DevicesController', () => {
     it('should call devicesService.rotateSecret with device id', async () => {
       mockDevicesService.rotateSecret.mockResolvedValue({ id: 1, rawSecret: 'new-secret' });
 
-      const result = await controller.rotateSecret(1);
+      const result = await controller.rotateSecret(1, { user: { userId: 1 } });
 
-      expect(mockDevicesService.rotateSecret).toHaveBeenCalledWith(1);
+      expect(mockDevicesService.rotateSecret).toHaveBeenCalledWith(1, 1);
       expect(result).toEqual({ id: 1, rawSecret: 'new-secret' });
     });
   });

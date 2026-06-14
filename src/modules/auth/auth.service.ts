@@ -42,7 +42,6 @@ export class AuthService {
       type: 'user',
     };
 
-    // Secret passed explicitly — user and device tokens use different secrets.
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('auth.userSecret'),
       expiresIn: this.configService.getOrThrow<number>('auth.userExpiresIn'),
@@ -51,40 +50,34 @@ export class AuthService {
     return { accessToken };
   }
 
-  async validateDevice(uid: string, secret: string) {
-    const device = await this.prisma.device.findUnique({ where: { uid } });
+  async validateDevice(hardwareId: string, secret: string) {
+    const devices = await this.prisma.device.findMany({
+      where: { hardwareId, revokedAt: null },
+    });
 
-    if (!device) {
+    if (devices.length === 0) {
       throw new UnauthorizedException('Invalid device credentials');
     }
 
-    if (!device.deviceSecretHash) {
-      throw new UnauthorizedException('Device has no secret configured');
+    for (const device of devices) {
+      if (device.deviceSecretHash && (await bcrypt.compare(secret, device.deviceSecretHash))) {
+        return device;
+      }
     }
 
-    if (device.revokedAt) {
-      throw new UnauthorizedException('Device has been revoked');
-    }
-
-    const valid = await bcrypt.compare(secret, device.deviceSecretHash);
-    if (!valid) {
-      throw new UnauthorizedException('Invalid device credentials');
-    }
-
-    return device;
+    throw new UnauthorizedException('Invalid device credentials');
   }
 
-  async deviceLogin(uid: string, secret: string) {
-    const device = await this.validateDevice(uid, secret);
+  async deviceLogin(hardwareId: string, secret: string) {
+    const device = await this.validateDevice(hardwareId, secret);
 
     const payload: DeviceJwtPayload = {
       sub: device.id,
-      uid: device.uid,
+      hardwareId: device.hardwareId,
       type: 'device',
       tokenVersion: device.deviceTokenVersion,
     };
 
-    // Secret passed explicitly — user and device tokens use different secrets.
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('auth.deviceSecret'),
       expiresIn: this.configService.getOrThrow<number>('auth.deviceExpiresIn'),

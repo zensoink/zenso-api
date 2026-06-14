@@ -1,5 +1,7 @@
+import { BootstrapClaimStatus } from '@prisma/client';
+
 export class ClaimStatusResponseDto {
-  status!: 'pending' | 'active' | 'expired';
-  uid?: string;
+  status!: BootstrapClaimStatus;
+  hardware_id?: string;
   device_secret?: string;
 }

@@ -3,11 +3,7 @@ import { IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 export class BootstrapRequestDto {
   @IsString()
   @IsNotEmpty()
-  device_id!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  local_setup_token!: string;
+  hardware_id!: string;
 
   @IsOptional()
   @IsString()
