@@ -49,7 +49,7 @@ async function main() {
   const device = await prisma.device.create({
     data: {
       name: 'Demo device',
-      uid: 'demo-device-001',
+      hardwareId: 'AABBCC112233',
       width: 800,
       height: 480,
       userId: user.id,
