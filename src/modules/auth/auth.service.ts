@@ -47,7 +47,64 @@ export class AuthService {
       expiresIn: this.configService.getOrThrow<number>('auth.userExpiresIn'),
     });
 
-    return { accessToken };
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.getOrThrow<string>('auth.refreshSecret'),
+      expiresIn: this.configService.getOrThrow<number>('auth.refreshExpiresIn'),
+    });
+
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokenHash },
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  async refreshTokens(userId: number, rawRefreshToken: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user?.refreshTokenHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isValid = await bcrypt.compare(rawRefreshToken, user.refreshTokenHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const payload: UserJwtPayload = {
+      sub: user.id,
+      email: user.email,
+      type: 'user',
+    };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.configService.getOrThrow<string>('auth.userSecret'),
+      expiresIn: this.configService.getOrThrow<number>('auth.userExpiresIn'),
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.getOrThrow<string>('auth.refreshSecret'),
+      expiresIn: this.configService.getOrThrow<number>('auth.refreshExpiresIn'),
+    });
+
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshTokenHash },
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  async logout(userId: number) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshTokenHash: null },
+    });
   }
 
   async validateDevice(hardwareId: string, secret: string) {

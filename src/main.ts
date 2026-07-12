@@ -2,6 +2,7 @@ import { HttpExceptionFilter } from '@core/filters/http-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 
@@ -14,9 +15,12 @@ async function bootstrap() {
     origin: corsOrigin,
     methods: 'GET, PUT, POST, DELETE, PATCH',
     allowedHeaders: 'Content-Type, Authorization',
+    credentials: true,
   });
 
   app.enableShutdownHooks();
+
+  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({

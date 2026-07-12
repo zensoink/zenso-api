@@ -39,6 +39,8 @@ function parseJwtExpiresIn(value: string | undefined, fallback: JwtExpiresIn): n
 export default registerAs('auth', () => ({
   userSecret: requireSecret('JWT_USER_SECRET', 'dev-user-secret-change-me'),
   deviceSecret: requireSecret('JWT_DEVICE_SECRET', 'dev-device-secret-change-me'),
+  refreshSecret: requireSecret('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-me'),
   userExpiresIn: parseJwtExpiresIn(process.env.JWT_USER_EXPIRES_IN, '1h'),
   deviceExpiresIn: parseJwtExpiresIn(process.env.JWT_DEVICE_EXPIRES_IN, '1h'),
+  refreshExpiresIn: parseJwtExpiresIn(process.env.JWT_REFRESH_EXPIRES_IN, '7d'),
 }));
