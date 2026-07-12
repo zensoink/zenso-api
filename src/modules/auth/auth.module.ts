@@ -6,8 +6,10 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { DeviceJwtAuthGuard } from './guards/device-jwt-auth.guard';
+import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { UserJwtAuthGuard } from './guards/user-jwt-auth.guard';
 import { DeviceJwtStrategy } from './strategies/device-jwt.strategy';
+import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { UserJwtStrategy } from './strategies/user-jwt.strategy';
 
 @Module({
@@ -15,14 +17,19 @@ import { UserJwtStrategy } from './strategies/user-jwt.strategy';
     PrismaModule,
     PassportModule,
     JwtModule.register({
-      // Secrets are intentionally NOT set here.
-      // This module signs two token types (user, device) with different secrets.
-      // Secret and expiresIn are passed explicitly in AuthService per token type.
       signOptions: { algorithm: 'HS256' },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, UserJwtStrategy, DeviceJwtStrategy, UserJwtAuthGuard, DeviceJwtAuthGuard],
-  exports: [UserJwtAuthGuard, DeviceJwtAuthGuard],
+  providers: [
+    AuthService,
+    UserJwtStrategy,
+    DeviceJwtStrategy,
+    JwtRefreshStrategy,
+    UserJwtAuthGuard,
+    DeviceJwtAuthGuard,
+    JwtRefreshAuthGuard,
+  ],
+  exports: [UserJwtAuthGuard, DeviceJwtAuthGuard, JwtRefreshAuthGuard],
 })
 export class AuthModule {}
