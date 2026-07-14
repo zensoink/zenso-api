@@ -1,30 +1,34 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class InstalledPluginResponseDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Registry plugin identifier', example: 'weather-widget' })
   pluginId!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Unique URL slug', example: 'weather-widget' })
   slug!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Display name', example: 'Weather Widget' })
   name!: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Plugin description',
+    example: 'Displays current weather and forecast',
+    nullable: true,
+  })
   description?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Plugin author', example: 'Zenso Labs', nullable: true })
   authorName?: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Execution mode', example: 'client' })
   executionMode!: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Currently active version', example: '1.0.0', nullable: true })
   selectedVersion?: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'All installed versions', example: ['1.0.0', '0.9.0'] })
   installedVersions!: string[];
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Installation status', example: 'installed' })
   status!: string;
 }

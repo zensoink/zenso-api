@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { AuthService } from './auth.service';
@@ -35,7 +35,13 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'User login' })
+  @ApiOperation({
+    summary: 'User login',
+    description:
+      'Authenticates a user with email and password. Returns a JWT access token ' +
+      '(user-jwt scheme) and sets a refresh token as an httpOnly cookie. ' +
+      'Use the access token for all user-facing endpoints (devices, screens, plugins).',
+  })
   @ApiBody({ type: UserLoginDto })
   @ApiResponse({ status: 200, description: 'Returns JWT access token, sets refresh token cookie' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -50,9 +56,13 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(JwtRefreshAuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiOperation({
+    summary: 'Refresh access token',
+    description:
+      'Uses the refresh token stored in the httpOnly cookie to issue a new access token ' +
+      'and a new refresh token (rotation). The old refresh token is invalidated.',
+  })
   @ApiResponse({ status: 200, description: 'Returns new JWT access token, sets new refresh token cookie' })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(
     @Req() req: { cookies: Record<string, string | undefined>; user: { userId: number; email: string } },
     @Res({ passthrough: true }) res: Response
@@ -72,7 +82,13 @@ export class AuthController {
   @Post('logout')
   @UseGuards(UserJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Logout user' })
+  @ApiOperation({
+    summary: 'Logout user',
+    description:
+      'Invalidates the current refresh token in the database and clears the refresh token cookie. ' +
+      'The access token remains valid until its natural expiry.',
+  })
+  @ApiBearerAuth('user-jwt')
   @ApiResponse({ status: 200, description: 'Clears refresh token and cookie' })
   async logout(@Req() req: { user: { userId: number; email: string } }, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(req.user.userId);
@@ -84,7 +100,13 @@ export class AuthController {
 
   @Post('device/login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Device login' })
+  @ApiOperation({
+    summary: 'Device login',
+    description:
+      'Authenticates a device using its hardware_id and secret (obtained during bootstrap/claim). ' +
+      'Returns a JWT access token (device-jwt scheme). Use this token for device endpoints: ' +
+      'check-in and display fetch.',
+  })
   @ApiBody({ type: DeviceLoginDto })
   @ApiResponse({ status: 200, description: 'Returns device JWT access token' })
   @ApiResponse({ status: 401, description: 'Invalid hardwareId or secret' })

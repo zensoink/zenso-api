@@ -1,63 +1,37 @@
 import { UserJwtAuthGuard } from '@modules/auth';
-import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
 
 import { ClaimService } from './claim.service';
 import { ClaimConfirmRequestDto } from './dto/claim-confirm-request.dto';
 import { ClaimConfirmResponseDto } from './dto/claim-confirm-response.dto';
-import { ClaimInfoResponseDto } from './dto/claim-info-response.dto';
 
+@ApiTags('Claim')
 @Controller()
 export class ClaimController {
-  constructor(
-    private readonly claimService: ClaimService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
-  ) {}
-
-  @Throttle({ default: { ttl: 60000, limit: 20 } })
-  @Get('claim/:token')
-  async getClaimInfo(
-    @Param('token') token: string,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ): Promise<ClaimInfoResponseDto | void> {
-    const userId = this.extractUserId(req);
-
-    if (!userId) {
-      res.redirect(302, `/auth/login?redirect=/claim/${token}`);
-      return;
-    }
-
-    return this.claimService.getClaimInfo(token);
-  }
+  constructor(private readonly claimService: ClaimService) {}
 
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiBearerAuth('user-jwt')
   @UseGuards(UserJwtAuthGuard)
   @Post('claim/confirm')
+  @ApiOperation({
+    summary: 'Confirm device claim',
+    description:
+      'Claims a device for the authenticated user. Upserts a device record and returns ' +
+      'the raw device secret (shown once). Rate-limited to 10 requests per minute.',
+  })
+  @ApiCreatedResponse({
+    type: ClaimConfirmResponseDto,
+    description: 'Claim confirmed — success flag and hardware ID',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized — valid user JWT required' })
+  @ApiResponse({ status: 404, description: 'Claim token not found or expired' })
   async confirmClaim(
     @Body() dto: ClaimConfirmRequestDto,
     @Req() req: { user: { userId: number } }
   ): Promise<ClaimConfirmResponseDto> {
     return this.claimService.confirmClaim(dto, req.user.userId);
-  }
-
-  private extractUserId(req: Request): number | null {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return null;
-
-    try {
-      const jwt = authHeader.slice(7);
-      const secret = this.configService.getOrThrow<string>('auth.userSecret');
-      const payload = this.jwtService.verify<{ sub: number }>(jwt, { secret });
-      return payload.sub;
-    } catch {
-      return null;
-    }
   }
 }

@@ -13,12 +13,18 @@ export class RenderController {
 
   @Get(':id/render/preview')
   @Header('Content-Type', 'image/png')
-  @ApiOperation({ summary: 'Render preview image for screen' })
+  @ApiOperation({
+    summary: 'Render preview image for screen',
+    description:
+      'Renders the full screen composition (all slot templates executed, composed, and composited) ' +
+      'into a PNG preview image. This is useful for testing layout and content before deploying to a device.',
+  })
   @ApiResponse({
     status: 200,
     description: 'PNG image buffer',
     content: { 'image/png': { schema: { type: 'string', format: 'binary' } } },
   })
+  @ApiResponse({ status: 404, description: 'Screen not found' })
   async renderPreview(@Param('id', ParseIntPipe) id: number): Promise<StreamableFile> {
     const { buffer: png } = await this.renderOrchestratorService.renderPreview(id);
     return new StreamableFile(png);

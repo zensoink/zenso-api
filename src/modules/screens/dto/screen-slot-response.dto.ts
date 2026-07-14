@@ -1,36 +1,36 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ScreenSlotResponseDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Unique slot ID', example: 1 })
   id!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Parent screen ID', example: 1 })
   screenId!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Assigned plugin instance ID', example: 1 })
   pluginInstanceId!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Unique key within screen', example: 'main' })
   slotKey!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'X offset in pixels', example: 0 })
   x!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Y offset in pixels', example: 0 })
   y!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Slot width in pixels', example: 400 })
   w!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Slot height in pixels', example: 480 })
   h!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Z-index (higher = on top)', example: 0 })
   zIndex!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Render order (lower = behind)', example: 0 })
   renderOrder!: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Resolved plugin instance object' })
   pluginInstance?: Record<string, unknown>;
 }
