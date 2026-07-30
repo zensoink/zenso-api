@@ -1,33 +1,37 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class DeviceStatusResponseDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Device hardware identifier', example: 'e4:5f:01:23:45:67' })
   hardwareId!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Active screen ID (null if none)', example: 1, nullable: true })
   screenId!: number | null;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'URL to fetch the rendered display',
+    example: 'https://api.zenso.local/devices/display?format=raw',
+    nullable: true,
+  })
   imageUrl!: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Polling interval in seconds', example: 300 })
   refreshRate!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Screen render width in pixels', example: 800 })
   width!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Screen render height in pixels', example: 480 })
   height!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Active color palette', example: ['#000000', '#FFFFFF'] })
   palette!: string[];
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Current render mode', example: 'black-white' })
   renderMode!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Whether a rendered image exists', example: true })
   hasImage!: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Whether content changed since last check-in', example: false })
   contentChanged!: boolean;
 }

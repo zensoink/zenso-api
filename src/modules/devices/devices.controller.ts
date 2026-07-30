@@ -52,27 +52,42 @@ export class DevicesController {
 
   @Post()
   @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({ summary: 'Create device and generate secret' })
+  @ApiOperation({
+    summary: 'Create device and generate secret',
+    description:
+      'Creates a new device record associated with the authenticated user. ' +
+      'Generates a random hardware ID and secret. The secret is returned only once in the response ' +
+      'and must be stored securely by the caller (e.g., flashed onto the device during manufacturing).',
+  })
   @ApiBearerAuth('user-jwt')
   @ApiCreatedResponse({ type: CreateDeviceResponseDto, description: 'Device created, rawSecret shown once' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async create(@Body() dto: CreateDeviceDto, @Req() req: { user: { userId: number } }) {
     return this.devicesService.createDevice(req.user.userId, dto);
   }
 
   @Get()
   @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({ summary: 'List user devices' })
+  @ApiOperation({
+    summary: 'List user devices',
+    description: 'Returns all devices owned by the authenticated user, including revoked ones.',
+  })
   @ApiBearerAuth('user-jwt')
   @ApiOkResponse({ type: DeviceResponseDto, isArray: true, description: 'List of user devices' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@Req() req: { user: { userId: number } }) {
     return this.devicesService.findAll(req.user.userId);
   }
 
   @Get(':id')
   @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({ summary: 'Get device by ID' })
+  @ApiOperation({
+    summary: 'Get device by ID',
+    description: 'Returns a single device by ID, scoped to the authenticated user.',
+  })
   @ApiBearerAuth('user-jwt')
   @ApiOkResponse({ type: DeviceResponseDto, description: 'Device details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Device not found' })
   findById(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
     return this.devicesService.findById(id, req.user.userId);
@@ -80,10 +95,16 @@ export class DevicesController {
 
   @Delete(':id')
   @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({ summary: 'Revoke device (soft delete)' })
+  @ApiOperation({
+    summary: 'Revoke device (soft delete)',
+    description:
+      'Soft-deletes a device by setting revokedAt. The device will be unable to check in or fetch ' +
+      'display images. This action is reversible by an admin (no dedicated restore endpoint yet).',
+  })
   @ApiBearerAuth('user-jwt')
   @HttpCode(HttpStatus.OK)
   @ApiResponse({ status: 200, description: 'Device revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Device not found' })
   revoke(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
     return this.devicesService.revoke(id, req.user.userId);
@@ -91,7 +112,13 @@ export class DevicesController {
 
   @Get('display')
   @UseGuards(DeviceJwtAuthGuard)
-  @ApiOperation({ summary: 'Get rendered display image for device' })
+  @ApiOperation({
+    summary: 'Get rendered display image for device',
+    description:
+      "Returns the current rendered display image for the device's active screen. " +
+      'Supports ETag-based caching — send If-None-Match header to get a 304 response when ' +
+      'content hasn\'t changed. Format query param: "raw" (EPD-binary, default) or "png" (preview).',
+  })
   @ApiBearerAuth('device-jwt')
   @ApiResponse({ status: 200, description: 'Raw EPD image or PNG preview' })
   @ApiResponse({ status: 304, description: 'Not modified (ETag match)' })
@@ -162,13 +189,20 @@ export class DevicesController {
 
   @Post('check-in')
   @UseGuards(DeviceJwtAuthGuard)
-  @ApiOperation({ summary: 'Device check-in to report status and receive config' })
+  @ApiOperation({
+    summary: 'Device check-in to report status and receive config',
+    description:
+      'Called periodically by the device to report its firmware version and receive the ' +
+      'current configuration: screen dimensions, palette, refresh rate, render mode, ' +
+      'and whether the display image has changed (contentChanged flag).',
+  })
   @ApiBearerAuth('device-jwt')
   @ApiResponse({
     status: 200,
     type: DeviceStatusResponseDto,
     description: 'Check-in accepted, returns config and next refresh interval',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async checkIn(
     @Req() req: { user: { deviceId: number } },
     @Body() dto: DeviceCheckInDto
@@ -179,9 +213,15 @@ export class DevicesController {
   @Post(':id/rotate-secret')
   @UseGuards(UserJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Rotate device secret (admin)' })
+  @ApiOperation({
+    summary: 'Rotate device secret (admin)',
+    description:
+      'Generates a new secret for a device, invalidating the old one. The new secret ' +
+      'is returned once — the device must be re-flashed with it. Useful for security rotations.',
+  })
   @ApiBearerAuth('user-jwt')
   @ApiOkResponse({ type: RotateDeviceSecretResponseDto, description: 'Device secret rotated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async rotateSecret(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
     return this.devicesService.rotateSecret(id, req.user.userId);
   }

@@ -49,31 +49,6 @@ npx prisma studio            # DB UI
 - **Decorators**: `experimentalDecorators`, `emitDecoratorMetadata`
 - **Target**: ES2023, CommonJS modules
 
-### Formatting (from .prettierrc)
-
-- 2 spaces, no tabs
-- Single quotes
-- Semicolons required
-- 120 char line width
-- Trailing commas (ES5)
-- Arrow parens: avoid when unnecessary
-
-### Import Order (enforced by eslint-plugin-simple-import-sort)
-
-1. NestJS/External packages (`@nestjs/*`, `node_modules`)
-2. Relative imports (`./`, `../`)
-3. **Sort within groups alphabetically**
-
-```typescript
-// Correct import order
-import { Body, Controller, Post } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDTO } from './dto/create-user.dto';
-import { UsersService } from './users.service';
-```
-
 ### TypeScript Typing Rules
 
 - **No `as` type assertions in production code.** This includes `as Type`, `as unknown as Type`, and double assertions.
@@ -102,27 +77,9 @@ import { UsersService } from './users.service';
 
 ## NestJS Patterns
 
-### Module Structure
-
-```typescript
-@Controller('resource') // HTTP routes
-export class XxxController {
-  constructor(private readonly xxxService: XxxService) {}
-}
-
-@Injectable()
-export class XxxService {
-  constructor(private readonly prismaService: PrismaService) {}
-}
-
-@Module({}) // Combine controller + service
-export class XxxModule {}
-```
-
 ### DTOs
 
 - Plain classes (not interfaces)
-- No validation decorators in current codebase (add as needed)
 
 ### Prisma Enums
 
@@ -134,12 +91,16 @@ import { DeviceStatus, DeviceClaimStatus } from '@prisma/client';
 
 device.status = DeviceStatus.active;
 device.claimStatus = DeviceClaimStatus.claimed;
-if (session.status === ClaimSessionStatus.pending) { ... }
+if (session.status === ClaimSessionStatus.pending) {
+  /*...*/
+}
 
 // Wrong — raw string literals
 device.status = 'active';
 device.claimStatus = 'claimed';
-if (session.status === 'pending') { ... }
+if (session.status === 'pending') {
+  /*...*/
+}
 ```
 
 When a DTO at the API boundary represents a derived/synthetic status not stored directly in any DB column, define a dedicated Prisma enum for it (e.g. `BootstrapClaimStatus`) to keep all enum references consistent and type-safe.
@@ -152,7 +113,7 @@ When a DTO at the API boundary represents a derived/synthetic status not stored 
 - Access models via `this.prismaService.modelName`
 - Use `include` for relations, avoid N+1
 
-```typescript
+```prisma
 // Prisma schema conventions
 model User {
   id    Int @id @default(autoincrement())
@@ -161,75 +122,102 @@ model User {
 }
 ```
 
-### Error Handling
-
-- Use NestJS `HttpException` classes
-- No raw `console.log` in production (use Logger)
-- Always catch async errors
-
----
-
-## Testing Patterns
-
-### Unit Test Structure
-
-```typescript
-describe('UsersService', () => {
-  let service: UsersService;
-  let mockPrismaService: jest.Mocked<PrismaService>;
-
-  beforeEach(async () => {
-    mockPrismaService = {
-      user: { create: jest.fn() },
-    } as unknown as jest.Mocked<PrismaService>;
-
-    const module = await Test.createTestingModule({
-      providers: [UsersService, { provide: PrismaService, useValue: mockPrismaService }],
-    }).compile();
-
-    service = module.get(UsersService);
-  });
-
-  it('should create a user', async () => {
-    const dto: CreateUserDTO = { name: 'John', email: 'john@example.com' };
-    mockPrismaService.user.create.mockResolvedValue({ id: 1, ...dto });
-
-    const result = await service.createUser(dto);
-
-    expect(mockPrismaService.user.create).toHaveBeenCalledWith({ data: dto });
-    expect(result.email).toBe('john@example.com');
-  });
-});
-```
-
 ---
 
 ## Common Pitfalls
 
-1. **TypeORM** - Use Prisma schema, not decorators
-2. **N+1 queries** - Use `include` for relations
-3. **Missing validation** - Add DTOs with class-validators
-4. **Hardcoded secrets** - Use `.env` + ConfigService
-5. **Large payloads** - Optimize images for IoT devices (use Sharp)
-6. **No error handling** - Wrap async operations in try-catch
+1. **N+1 queries** - Use `include` for relations
+2. **Large payloads** - Optimize images for IoT devices (use Sharp)
 
 ---
 
-## Git Workflow
+## API Documentation Standards (NestJS Swagger)
 
-### Commit Messages (Conventional Commits)
+Follow best practices from Stripe, GitHub, and Twilio — every endpoint should answer **what**, **why**, and **when**.
 
+### Per-Endpoint Rules
+
+Every `@ApiOperation` MUST include both `summary` and `description`:
+
+- **summary**: One-line imperative verb (`"Register new user"`, `"List user devices"`)
+- **description**: 2-4 sentences explaining the _why_ — triggers, side effects, when to use this endpoint
+
+```typescript
+@ApiOperation({
+  summary: 'Bootstrap a new device',
+  description:
+    'First call a device makes after power-on. Creates a claim session and returns a URL ' +
+    'that the device owner visits to claim the device. Rate-limited to 5 requests per minute.',
+})
 ```
-feat(users): add user registration endpoint
-fix(rendering): resolve timeout on large images
-chore(deps): update prisma to v7.3
+
+### DTO Field Rules
+
+Every DTO field MUST have `@ApiProperty` or `@ApiPropertyOptional` with:
+
+- **description**: What the field is, in context
+- **example**: A **realistic, copy-paste-ready value** (never `"string"` or `0`)
+- **nullable**: true if the field can be null
+- **enum**: Reference the Prisma enum type when applicable
+
+```typescript
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString } from 'class-validator';
+import { DeviceStatus } from '@prisma/client';
+
+// Request DTO
+export class CreateDeviceDto {
+  @ApiProperty({ description: 'Device name', example: 'Living Room Display' })
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+}
+
+// Response DTO
+export class DeviceResponseDto {
+  @ApiProperty({ description: 'Current device status', enum: DeviceStatus, example: DeviceStatus.active })
+  status!: DeviceStatus;
+
+  @ApiPropertyOptional({ description: 'Last check-in timestamp', example: '2026-07-14T10:30:00.000Z', nullable: true })
+  lastSeenAt?: Date | null;
+}
 ```
 
-### Branch Naming
+### Error Response Rules
 
-- `feature/widget-marketplace`
-- `fix/polling-timeout`
-- `chore/update-deps`
+Every status code needs a `description` — never leave it empty:
+
+```typescript
+// Good
+@ApiResponse({ status: 404, description: 'Device not found' })
+
+// Bad — no description
+@ApiResponse({ status: 404 })
+```
+
+Document at minimum: **200/201 for success**, **400 for validation**, **401 for missing/invalid auth**, **404 for not found**, **409 for conflicts**.
+
+### Tag Descriptions
+
+Add tag metadata in `main.ts` after document creation. Every tag gets a one-sentence description.
+
+### API-Level Description
+
+The `DocumentBuilder.setDescription()` in `main.ts` must include:
+
+1. **What the system is** (one sentence)
+2. **Auth model overview** (two auth schemes, how to obtain each)
+3. **Flow overview** (numbered sequence of the main user journey)
+
+### Checklist Before Merging
+
+- [ ] Every endpoint has `@ApiOperation({ summary, description })`
+- [ ] Every DTO field has `@ApiProperty`/`@ApiPropertyOptional` with `description` and `example`
+- [ ] Every `@ApiResponse` has a non-empty `description`
+- [ ] POST/PATCH endpoints have `@ApiBody({ type })`
+- [ ] Response DTOs with `@ApiProperty` have `description` + `example`
+- [ ] Auth-endpoints missing `@ApiBearerAuth` have it
+- [ ] `pnpm run build` passes after doc changes
 
 ---
 

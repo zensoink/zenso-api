@@ -54,9 +54,9 @@ export class BootstrapService {
       });
     });
 
-    const baseUrl = this.configService.getOrThrow<string>('app.baseUrl');
+    const frontendUrl = this.configService.getOrThrow<string>('app.frontendUrl');
     return {
-      claim_url: `${baseUrl}/claim/${plaintextToken}`,
+      claim_url: `${frontendUrl}/claim/${plaintextToken}`,
       claim_session_id: session.id,
       claim_expires_at: expiresAt.toISOString(),
     };

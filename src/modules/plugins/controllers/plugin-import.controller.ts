@@ -21,7 +21,13 @@ export class PluginImportController {
       },
     })
   )
-  @ApiOperation({ summary: 'Import plugin from ZIP file' })
+  @ApiOperation({
+    summary: 'Import plugin from ZIP file',
+    description:
+      'Uploads a plugin as a ZIP file (max 10 MB). The plugin manifest is validated against the ' +
+      'expected schema. If valid, the plugin is extracted to local storage and registered. ' +
+      'Supports both production and development (side-load) plugins.',
+  })
   @ApiBearerAuth('user-jwt')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -34,6 +40,7 @@ export class PluginImportController {
   })
   @ApiResponse({ status: 201, description: 'Plugin imported successfully' })
   @ApiResponse({ status: 400, description: 'Invalid ZIP file' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async importZip(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Missing file');
