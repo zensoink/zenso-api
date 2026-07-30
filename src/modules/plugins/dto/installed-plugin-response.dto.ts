@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class InstalledPluginResponseDto {
+  @ApiProperty({ description: 'Internal plugin ID (used for uninstall)', example: 1 })
+  id!: number;
+
   @ApiProperty({ description: 'Registry plugin identifier', example: 'weather-widget' })
   pluginId!: string;
 
