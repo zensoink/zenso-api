@@ -48,6 +48,7 @@ export class PluginsService {
 
   private toInstalledPluginResponse(plugin: Plugin & { versions: PluginVersion[] }) {
     return {
+      id: plugin.id,
       pluginId: plugin.manifestId,
       slug: plugin.slug,
       name: plugin.name,
