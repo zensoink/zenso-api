@@ -23,6 +23,12 @@ export class InstalledPluginResponseDto {
   @ApiPropertyOptional({ description: 'Plugin author', example: 'Zenso Labs', nullable: true })
   authorName?: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Plugin configuration schema (drives the panel config form)',
+    nullable: true,
+  })
+  configSchema?: Record<string, unknown> | null;
+
   @ApiProperty({ description: 'Execution mode', example: 'client' })
   executionMode!: string;
 

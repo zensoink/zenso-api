@@ -77,7 +77,16 @@ describe('ScreensService', () => {
       const result = await service.findAll();
 
       expect(mockPrismaService.screen.findMany).toHaveBeenCalledWith({
-        include: { slots: true },
+        include: {
+          slots: {
+            include: {
+              pluginInstance: {
+                include: { plugin: true },
+              },
+            },
+            orderBy: { renderOrder: 'asc' },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
       expect(result).toEqual(screens);
@@ -146,7 +155,11 @@ describe('ScreensService', () => {
         where: { id: 1 },
         include: {
           slots: {
-            include: { pluginInstance: true },
+            include: {
+              pluginInstance: {
+                include: { plugin: true },
+              },
+            },
             orderBy: { renderOrder: 'asc' },
           },
         },

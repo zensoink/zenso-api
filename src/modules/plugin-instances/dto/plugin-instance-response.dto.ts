@@ -19,6 +19,12 @@ export class PluginInstanceResponseDto {
   })
   configJson?: Record<string, unknown>;
 
+  @ApiPropertyOptional({
+    description: 'Plugin configuration schema (drives the panel config form)',
+    nullable: true,
+  })
+  configSchema?: Record<string, unknown> | null;
+
   @ApiProperty({ description: 'Execution mode', example: 'client' })
   executionMode!: string;
 

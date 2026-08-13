@@ -24,7 +24,16 @@ export class ScreensService {
 
   async findAll() {
     return this.prisma.screen.findMany({
-      include: { slots: true },
+      include: {
+        slots: {
+          include: {
+            pluginInstance: {
+              include: { plugin: true },
+            },
+          },
+          orderBy: { renderOrder: 'asc' },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -34,7 +43,11 @@ export class ScreensService {
       where: { id },
       include: {
         slots: {
-          include: { pluginInstance: true },
+          include: {
+            pluginInstance: {
+              include: { plugin: true },
+            },
+          },
           orderBy: { renderOrder: 'asc' },
         },
       },

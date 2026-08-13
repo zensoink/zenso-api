@@ -17,6 +17,7 @@ export interface RegistryPluginDetail {
   thumbnail?: string;
   executionMode: 'local' | 'protected';
   schema_version: number;
+  config_schema?: unknown;
   core_min?: string;
   license?: string;
   distTags: RegistryDistTags;

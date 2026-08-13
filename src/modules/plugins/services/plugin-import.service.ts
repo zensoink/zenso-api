@@ -1,6 +1,7 @@
 import { PrismaService } from '@core/prisma';
 import { toPrismaJson } from '@core/prisma/utils';
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PluginStorageService } from './plugin-storage.service';
 import { PluginValidatorService } from './plugin-validator.service';
@@ -51,6 +52,7 @@ export class PluginImportService {
         update: {
           name: manifest.name,
           authorName: manifest.author?.name ?? null,
+          configSchema: toPrismaJson(manifest.config_schema ?? Prisma.JsonNull),
           updatedAt: new Date(),
         },
         create: {
@@ -58,6 +60,7 @@ export class PluginImportService {
           slug: pluginSlug,
           name: manifest.name,
           authorName: manifest.author?.name ?? null,
+          configSchema: toPrismaJson(manifest.config_schema ?? Prisma.JsonNull),
           sourceType: 'zip',
         },
       });
