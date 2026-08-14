@@ -2,11 +2,13 @@ import { promises as fs, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { PrismaService } from '@core/prisma';
+import { DataSourcesService } from '@modules/data-sources';
 import { PluginStorageService } from '@modules/plugins';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Liquid } from 'liquidjs';
 import { z } from 'zod';
 
+import { pluginManifestSchema } from '../../plugins/interfaces/plugin-manifest.schema';
 import { ContextAggregationService } from './context-aggregation.service';
 
 const MIME_TYPES: Record<string, string> = {
@@ -31,7 +33,8 @@ export class PluginExecutionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pluginStorageService: PluginStorageService,
-    private readonly contextAggregationService: ContextAggregationService
+    private readonly contextAggregationService: ContextAggregationService,
+    private readonly dataSourcesService: DataSourcesService
   ) {}
 
   async execute(params: {
@@ -102,6 +105,16 @@ export class PluginExecutionService {
       height: params.height,
     });
 
+    const parsedManifest = pluginManifestSchema.safeParse(manifestJson);
+    const dataSources = parsedManifest.success ? (parsedManifest.data.data_sources ?? []) : [];
+    const dataSourcesData = await this.dataSourcesService.resolveAll(
+      dataSources,
+      context.config,
+      context.zenso.user.timeZoneIana,
+      instance.id
+    );
+    Object.assign(context, dataSourcesData);
+
     const liquid = new Liquid({ root: templateDir });
 
     const versionDir = pluginVersion.installPath;
@@ -123,6 +136,8 @@ export class PluginExecutionService {
         return relativePath;
       }
     });
+
+    liquid.registerFilter('json_safe', (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c'));
 
     const html = String(await liquid.parseAndRender(template, context));
     return { html };

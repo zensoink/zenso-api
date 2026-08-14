@@ -1,7 +1,8 @@
 import { PrismaService } from '@core/prisma';
 import { toPrismaJson } from '@core/prisma/utils';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Plugin, PluginVersion } from '@prisma/client';
+import { Plugin, PluginVersion, Prisma } from '@prisma/client';
+import { z } from 'zod';
 
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { RegistryPluginDetail } from '../interfaces/registry-types';
@@ -54,6 +55,7 @@ export class PluginsService {
       name: plugin.name,
       description: plugin.description,
       authorName: plugin.authorName,
+      configSchema: plugin.configSchema ?? null,
       executionMode: plugin.versions[0]?.executionMode || 'local',
       selectedVersion: plugin.versions[0]?.version ?? null,
       installedVersions: plugin.versions.map(v => v.version),
@@ -100,6 +102,10 @@ export class PluginsService {
   private async installProtectedPlugin(detail: RegistryPluginDetail, version: string) {
     const slug = detail.id.replaceAll('/', '__');
 
+    const configSchema = z.record(z.string(), z.unknown()).safeParse(detail.config_schema).success
+      ? toPrismaJson(detail.config_schema)
+      : Prisma.JsonNull;
+
     const result = await this.prisma.$transaction(async tx => {
       const plugin = await tx.plugin.upsert({
         where: { manifestId: detail.id },
@@ -112,6 +118,7 @@ export class PluginsService {
           coreMin: detail.core_min ?? null,
           license: detail.license ?? null,
           sourceType: 'protected',
+          configSchema,
           updatedAt: new Date(),
         },
         create: {
@@ -125,6 +132,7 @@ export class PluginsService {
           coreMin: detail.core_min ?? null,
           license: detail.license ?? null,
           sourceType: 'protected',
+          configSchema,
         },
       });
 

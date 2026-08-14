@@ -6,6 +6,15 @@ import { Prisma } from '@prisma/client';
 import { CreatePluginInstanceDTO } from './dto/create-plugin-instance.dto';
 import { UpdatePluginInstanceDTO } from './dto/update-plugin-instance.dto';
 
+interface PluginScoped {
+  plugin?: { configSchema?: Prisma.JsonValue } | null;
+}
+
+const withConfigSchema = <T extends PluginScoped>(instance: T) => ({
+  ...instance,
+  configSchema: instance.plugin?.configSchema ?? null,
+});
+
 @Injectable()
 export class PluginInstancesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -16,7 +25,8 @@ export class PluginInstancesService {
       throw new NotFoundException('Plugin not found');
     }
 
-    return this.prisma.pluginInstance.create({
+    const instance = await this.prisma.pluginInstance.create({
+      include: { plugin: { select: { configSchema: true } } },
       data: {
         pluginId: dto.pluginId,
         pluginVersionId: dto.pluginVersionId,
@@ -27,13 +37,17 @@ export class PluginInstancesService {
         userId,
       },
     });
+
+    return withConfigSchema(instance);
   }
 
   async findAll() {
-    return this.prisma.pluginInstance.findMany({
+    const instances = await this.prisma.pluginInstance.findMany({
       include: { plugin: true },
       orderBy: { createdAt: 'desc' },
     });
+
+    return instances.map(withConfigSchema);
   }
 
   async findById(id: number) {
@@ -44,7 +58,7 @@ export class PluginInstancesService {
     if (!instance) {
       throw new NotFoundException('PluginInstance not found');
     }
-    return instance;
+    return withConfigSchema(instance);
   }
 
   async remove(id: number) {
@@ -72,6 +86,7 @@ export class PluginInstancesService {
     const [updated] = await this.prisma.$transaction([
       this.prisma.pluginInstance.update({
         where: { id },
+        include: { plugin: { select: { configSchema: true } } },
         data: {
           ...dto,
           configJson: dto.configJson !== undefined ? toPrismaJson(dto.configJson) : undefined,
@@ -85,6 +100,6 @@ export class PluginInstancesService {
       ),
     ]);
 
-    return updated;
+    return withConfigSchema(updated);
   }
 }

@@ -17,6 +17,17 @@ export const pluginManifestSchema = z.object({
   license: z.string().optional(),
   author: pluginManifestAuthorSchema.optional(),
   config_schema: z.record(z.string(), z.unknown()),
+  data_sources: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.string(),
+        config: z.record(z.string(), z.unknown()).optional(),
+        refresh_ttl: z.number().positive().optional(),
+      })
+    )
+    .optional(),
+  capabilities: z.array(z.enum(['script'])).optional(),
 });
 
 export type PluginManifestSchema = z.infer<typeof pluginManifestSchema>;

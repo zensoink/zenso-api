@@ -1,5 +1,6 @@
 import { PrismaService } from '@core/prisma';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { z } from 'zod';
 
 import { HtmlToImageService } from './html-to-image.service';
 import { PluginExecutionService } from './plugin-execution.service';
@@ -61,6 +62,7 @@ export class ScreenRenderService {
           width: slot.w,
           height: slot.h,
           assetDir: slot.pluginInstance.pluginVersion?.installPath ?? undefined,
+          waitForReady: this.isScriptCapable(slot.pluginInstance.pluginVersion?.manifestJson),
         });
 
         return {
@@ -73,5 +75,14 @@ export class ScreenRenderService {
         };
       })
     );
+  }
+
+  private isScriptCapable(manifestJson: unknown): boolean {
+    const manifest = z.record(z.string(), z.unknown()).safeParse(manifestJson);
+    const capabilities = z
+      .array(z.enum(['script']))
+      .optional()
+      .safeParse(manifest.success ? manifest.data['capabilities'] : undefined);
+    return capabilities.success && capabilities.data?.includes('script') === true;
   }
 }

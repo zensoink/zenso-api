@@ -1,4 +1,5 @@
 import { AuthModule } from '@modules/auth';
+import { DataSourcesModule } from '@modules/data-sources';
 import { PluginsModule } from '@modules/plugins';
 import { Module } from '@nestjs/common';
 
@@ -14,7 +15,7 @@ import { ScreenComposerService } from './services/screen-composer.service';
 import { ScreenRenderService } from './services/screen-render.service';
 
 @Module({
-  imports: [AuthModule, PluginsModule],
+  imports: [AuthModule, PluginsModule, DataSourcesModule],
   controllers: [RenderController],
   providers: [
     BrowserService,
