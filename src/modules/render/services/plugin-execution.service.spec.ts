@@ -21,12 +21,12 @@ describe('PluginExecutionService', () => {
 
   const makeManifest = (overrides: Record<string, unknown> = {}) => ({
     $schema: 'https://zenso.dev/manifest.schema.json',
-    id: 'test.calendar',
+    id: 'test/calendar',
     version: '1.0.0',
     name: 'Calendar',
     schema_version: 1,
     core_min: '0.1.0',
-    config_schema: {},
+    config_schema: { type: 'object', properties: {} },
     ...overrides,
   });
 

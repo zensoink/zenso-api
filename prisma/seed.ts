@@ -40,6 +40,7 @@ async function main() {
         name: 'Hello World',
         schema_version: 1,
         core_min: '1.0.0',
+        config_schema: { type: 'object', properties: {} },
       },
       executionMode: 'local',
       status: 'installed',

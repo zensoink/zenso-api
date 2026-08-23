@@ -21,7 +21,6 @@ export interface DataSourceDescriptor {
   id: string;
   type: string;
   config?: Record<string, unknown>;
-  refresh_ttl?: number;
 }
 
 interface CacheEntry {
@@ -30,7 +29,6 @@ interface CacheEntry {
 }
 
 const DEFAULT_TTL_SECONDS = 600;
-const MIN_TTL_SECONDS = 300;
 
 @Injectable()
 export class DataSourcesService {
@@ -79,7 +77,7 @@ export class DataSourcesService {
           this.logger.error(`Data source "${source.id}" (${source.type}) failed`, error);
           data = {};
         }
-        const ttlMs = Math.max(source.refresh_ttl ?? DEFAULT_TTL_SECONDS, MIN_TTL_SECONDS) * 1000;
+        const ttlMs = DEFAULT_TTL_SECONDS * 1000;
         this.cache.set(key, { data, expiresAt: now.getTime() + ttlMs });
       }
 
