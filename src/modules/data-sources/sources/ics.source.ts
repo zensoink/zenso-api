@@ -10,9 +10,20 @@ const DEFAULT_DAYS_AHEAD = 14;
 const MAX_DAYS_AHEAD = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+interface FeedSpec {
+  url: string;
+  color: string | null;
+}
+
 export interface CalendarEventOutput {
   title: string;
   location: string | null;
+  description: string | null;
+  status: string | null;
+  url: string | null;
+  uid: string | null;
+  recurring: boolean;
+  color: string | null;
   all_day: boolean;
   day_label: string;
   start: string | null;
@@ -45,7 +56,7 @@ export class IcsSource implements DataSourceHandler {
   private readonly logger = new Logger(IcsSource.name);
 
   async resolve(ctx: DataSourceContext): Promise<Record<string, unknown>> {
-    const urls = this.resolveUrls(ctx);
+    const feeds = this.resolveUrls(ctx);
     const daysAhead = this.resolveDaysAhead(ctx);
     const now = new Date();
     const events: CalendarEventOutput[] = [];
@@ -56,11 +67,11 @@ export class IcsSource implements DataSourceHandler {
       now_label: timeLabelAt(ctx.timeZoneIana, now),
       days_ahead: daysAhead,
       fetched_at: now.toISOString(),
-      sources: urls,
+      sources: feeds.map(feed => feed.url),
       events,
     };
 
-    if (urls.length === 0) {
+    if (feeds.length === 0) {
       return base;
     }
 
@@ -69,13 +80,13 @@ export class IcsSource implements DataSourceHandler {
     const windowEnd = utcFromLocal(ctx.timeZoneIana, todayYear, todayMonth, todayDay + daysAhead);
     const todayPlus = dateStringAt(ctx.timeZoneIana, windowEnd);
 
-    for (const url of urls) {
+    for (const feed of feeds) {
       try {
-        const text = await guardedFetch(url);
+        const text = await guardedFetch(feed.url);
         const calendar = ical.parseICS(text);
-        events.push(...this.extractEvents(calendar, ctx, windowStart, windowEnd, todayPlus));
+        events.push(...this.extractEvents(calendar, ctx, windowStart, windowEnd, todayPlus, feed.color));
       } catch (error: unknown) {
-        this.logger.warn(`Failed to load ICS feed "${url}" - using empty fallback`, error);
+        this.logger.warn(`Failed to load ICS feed "${feed.url}" - using empty fallback`, error);
       }
     }
 
@@ -84,11 +95,25 @@ export class IcsSource implements DataSourceHandler {
     return { ...base, events };
   }
 
-  private resolveUrls(ctx: DataSourceContext): string[] {
+  private resolveUrls(ctx: DataSourceContext): FeedSpec[] {
     const urlsField = z.string().optional().parse(ctx.manifestConfig['urls_field']);
-    const rawUrls = urlsField ? ctx.configJson[urlsField] : undefined;
-    const urls = z.array(z.string()).optional().parse(rawUrls) ?? [];
-    return urls.filter(url => isAllowedFeedUrl(url));
+    const raw = urlsField ? ctx.configJson[urlsField] : undefined;
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    const feeds: FeedSpec[] = [];
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        feeds.push({ url: entry, color: null });
+        continue;
+      }
+      const obj = z.object({ url: z.string(), color: z.string().optional() }).passthrough().safeParse(entry);
+      if (obj.success) {
+        feeds.push({ url: obj.data.url, color: obj.data.color ?? null });
+      }
+    }
+    return feeds.filter(feed => isAllowedFeedUrl(feed.url));
   }
 
   private resolveDaysAhead(ctx: DataSourceContext): number {
@@ -103,7 +128,8 @@ export class IcsSource implements DataSourceHandler {
     ctx: DataSourceContext,
     windowStart: Date,
     windowEnd: Date,
-    todayPlus: string
+    todayPlus: string,
+    feedColor: string | null
   ): CalendarEventOutput[] {
     const events: CalendarEventOutput[] = [];
 
@@ -129,7 +155,7 @@ export class IcsSource implements DataSourceHandler {
       }
 
       for (const instance of instances) {
-        const output = this.toOutputEvent(instance, ctx, todayPlus);
+        const output = this.toOutputEvent(instance, ctx, todayPlus, feedColor);
         if (output) {
           events.push(output);
         }
@@ -142,7 +168,8 @@ export class IcsSource implements DataSourceHandler {
   private toOutputEvent(
     instance: EventInstance,
     ctx: DataSourceContext,
-    todayPlus: string
+    todayPlus: string,
+    feedColor: string | null
   ): CalendarEventOutput | null {
     const allDay = instance.isFullDay;
     const title = normalizeText(instance.summary) ?? '';
@@ -154,13 +181,23 @@ export class IcsSource implements DataSourceHandler {
       return null;
     }
 
+    const shared: Omit<CalendarEventOutput, 'all_day' | 'start' | 'end' | 'time_label' | 'end_time_label'> = {
+      title,
+      location,
+      description: normalizeText(instance.event?.description),
+      status: instance.event?.status ?? null,
+      url: instance.event?.url ?? null,
+      uid: instance.event?.uid ?? null,
+      recurring: instance.isRecurring,
+      color: feedColor,
+      day_label: clampedDay,
+    };
+
     if (allDay) {
       const [year, month, day] = clampedDay.split('-').map(Number);
       return {
-        title,
-        location,
+        ...shared,
         all_day: true,
-        day_label: clampedDay,
         start: formatWithOffset(ctx.timeZoneIana, utcFromLocal(ctx.timeZoneIana, year, month, day)),
         end: formatWithOffset(ctx.timeZoneIana, utcFromLocal(ctx.timeZoneIana, year, month, day + 1)),
         time_label: '',
@@ -170,10 +207,8 @@ export class IcsSource implements DataSourceHandler {
 
     const end = instance.end instanceof Date ? instance.end : null;
     return {
-      title,
-      location,
+      ...shared,
       all_day: false,
-      day_label: clampedDay,
       start: formatWithOffset(ctx.timeZoneIana, instance.start),
       end: end ? formatWithOffset(ctx.timeZoneIana, end) : null,
       time_label: timeLabelAt(ctx.timeZoneIana, instance.start),

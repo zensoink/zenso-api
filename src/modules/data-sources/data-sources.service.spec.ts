@@ -50,10 +50,10 @@ describe('DataSourcesService', () => {
 
     it('re-resolves after the TTL expires', async () => {
       service.nowFn = () => new Date('2026-08-01T00:00:00Z');
-      const dataSources = [{ id: 'cal', type: 'mock', refresh_ttl: 1 }];
+      const dataSources = [{ id: 'cal', type: 'mock' }];
 
       await service.resolveAll(dataSources, {}, 'Europe/Warsaw', 1);
-      service.nowFn = () => new Date('2026-08-01T00:05:01Z');
+      service.nowFn = () => new Date('2026-08-01T00:10:01Z');
       await service.resolveAll(dataSources, {}, 'Europe/Warsaw', 1);
 
       expect(mockHandler.resolve).toHaveBeenCalledTimes(2);

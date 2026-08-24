@@ -1,6 +1,6 @@
 import { DataSourceContext } from '../data-sources.service';
 import { guardedFetch } from '../http/guarded-fetch';
-import { IcsSource } from './ics.source';
+import { type CalendarEventOutput, IcsSource } from './ics.source';
 
 jest.mock('../http/guarded-fetch', () => ({
   guardedFetch: jest.fn(),
@@ -49,6 +49,17 @@ DTSTART;TZID=Europe/Warsaw:20260801T143000
 DTEND;TZID=Europe/Warsaw:20260801T153000
 SUMMARY:Team standup
 LOCATION:Room 4
+END:VEVENT
+BEGIN:VEVENT
+UID:rich-1
+DTSTAMP:20260101T000000Z
+DTSTART;TZID=Europe/Warsaw:20260801T090000
+DTEND;TZID=Europe/Warsaw:20260801T093000
+SUMMARY:Dentist appointment
+LOCATION:Clinic
+DESCRIPTION:Annual checkup
+STATUS:TENTATIVE
+URL:https://example.com/dentist
 END:VEVENT
 BEGIN:VEVENT
 UID:cancelled-1
@@ -111,6 +122,12 @@ describe('IcsSource', () => {
       {
         title: 'Farmers market',
         location: null,
+        description: null,
+        status: null,
+        url: null,
+        uid: 'allday-1',
+        recurring: false,
+        color: null,
         all_day: true,
         day_label: '2026-08-01',
         start: '2026-08-01T00:00:00+02:00',
@@ -119,8 +136,30 @@ describe('IcsSource', () => {
         end_time_label: null,
       },
       {
+        title: 'Dentist appointment',
+        location: 'Clinic',
+        description: 'Annual checkup',
+        status: 'TENTATIVE',
+        url: 'https://example.com/dentist',
+        uid: 'rich-1',
+        recurring: false,
+        color: null,
+        all_day: false,
+        day_label: '2026-08-01',
+        start: '2026-08-01T09:00:00+02:00',
+        end: '2026-08-01T09:30:00+02:00',
+        time_label: '09:00',
+        end_time_label: '09:30',
+      },
+      {
         title: 'Team standup',
         location: 'Room 4',
+        description: null,
+        status: null,
+        url: null,
+        uid: 'timed-1',
+        recurring: false,
+        color: null,
         all_day: false,
         day_label: '2026-08-01',
         start: '2026-08-01T14:30:00+02:00',
@@ -131,6 +170,12 @@ describe('IcsSource', () => {
       {
         title: 'Weekend trip',
         location: null,
+        description: null,
+        status: null,
+        url: null,
+        uid: 'multiday-1',
+        recurring: false,
+        color: null,
         all_day: false,
         day_label: '2026-08-01',
         start: '2026-07-31T22:00:00+02:00',
@@ -141,6 +186,12 @@ describe('IcsSource', () => {
       {
         title: 'Weekly standup',
         location: 'Room 4',
+        description: null,
+        status: null,
+        url: null,
+        uid: 'recurring-1',
+        recurring: true,
+        color: null,
         all_day: false,
         day_label: '2026-08-03',
         start: '2026-08-03T14:00:00+02:00',
@@ -151,6 +202,12 @@ describe('IcsSource', () => {
       {
         title: 'Weekly standup',
         location: 'Room 4',
+        description: null,
+        status: null,
+        url: null,
+        uid: 'recurring-1',
+        recurring: true,
+        color: null,
         all_day: false,
         day_label: '2026-08-10',
         start: '2026-08-10T14:00:00+02:00',
@@ -193,6 +250,22 @@ describe('IcsSource', () => {
 
     expect(result.sources).toEqual(['https://feeds.example/cal.ics']);
     expect(guardedFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves object-array feeds (url + color) and stamps color on events', async () => {
+    (guardedFetch as jest.Mock).mockResolvedValue(FIXTURE_ICS);
+    const result = await source.resolve({
+      ...ctx,
+      configJson: {
+        calendar_feeds: [{ url: 'https://feeds.example/cal.ics', color: '#FF0000' }],
+        days_ahead: 14,
+      },
+    });
+
+    expect(result.sources).toEqual(['https://feeds.example/cal.ics']);
+    const events = result.events as CalendarEventOutput[];
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.every(event => event.color === '#FF0000')).toBe(true);
   });
 
   it('returns the empty fallback when a feed cannot be fetched', async () => {

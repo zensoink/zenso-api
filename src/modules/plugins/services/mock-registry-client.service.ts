@@ -60,7 +60,7 @@ export class MockRegistryClient {
       name: pluginId.split('/').pop() ?? pluginId,
       schema_version: 1,
       core_min: '1.0.0',
-      config_schema: {},
+      config_schema: { type: 'object', properties: {} },
     };
 
     const zip = new AdmZip();
