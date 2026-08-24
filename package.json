@@ -28,7 +28,6 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
-    "prebuild": "pnpm generate:manifest",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:backend:refresh": "docker compose build --no-cache backend && docker compose up --force-recreate --no-deps backend",
