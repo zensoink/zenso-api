@@ -40,7 +40,8 @@ export class SeedService implements OnApplicationBootstrap {
       data: { name: 'Demo User', email: 'demo@zenso.local', passwordHash },
     });
 
-    const plugin = await this.downloadAndImportPlugin();
+    const seedInitialPlugin = process.env.SEED_INITIAL_PLUGIN !== 'false';
+    const plugin = seedInitialPlugin ? await this.downloadAndImportPlugin() : null;
 
     const rawSecret = crypto.randomBytes(32).toString('hex');
     const deviceSecretHash = await bcrypt.hash(rawSecret, 10);
@@ -61,19 +62,6 @@ export class SeedService implements OnApplicationBootstrap {
       },
     });
 
-    const dbPlugin = await this.prisma.plugin.findUniqueOrThrow({
-      where: { manifestId: plugin.pluginId },
-    });
-
-    const instance = await this.prisma.pluginInstance.create({
-      data: {
-        pluginId: dbPlugin.id,
-        name: 'My Zenso Plugin',
-        userId: user.id,
-        isEnabled: true,
-      },
-    });
-
     const screen = await this.prisma.screen.create({
       data: {
         name: 'Default Screen',
@@ -84,18 +72,33 @@ export class SeedService implements OnApplicationBootstrap {
       },
     });
 
-    await this.prisma.screenSlot.create({
-      data: {
-        screenId: screen.id,
-        pluginInstanceId: instance.id,
-        slotKey: 'A',
-        x: 0,
-        y: 0,
-        w: 800,
-        h: 480,
-        renderOrder: 0,
-      },
-    });
+    if (seedInitialPlugin && plugin) {
+      const dbPlugin = await this.prisma.plugin.findUniqueOrThrow({
+        where: { manifestId: plugin.pluginId },
+      });
+
+      const instance = await this.prisma.pluginInstance.create({
+        data: {
+          pluginId: dbPlugin.id,
+          name: 'My Zenso Plugin',
+          userId: user.id,
+          isEnabled: true,
+        },
+      });
+
+      await this.prisma.screenSlot.create({
+        data: {
+          screenId: screen.id,
+          pluginInstanceId: instance.id,
+          slotKey: 'A',
+          x: 0,
+          y: 0,
+          w: 800,
+          h: 480,
+          renderOrder: 0,
+        },
+      });
+    }
   }
 
   private async downloadAndImportPlugin() {
