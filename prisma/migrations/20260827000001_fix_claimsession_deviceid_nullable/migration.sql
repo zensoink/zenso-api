@@ -1,0 +1,1 @@
+ALTER TABLE "ClaimSession" ALTER COLUMN "deviceId" DROP NOT NULL;
