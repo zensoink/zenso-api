@@ -175,7 +175,7 @@ model Screen {
 model PluginInstance {
   id              Int             @id @default(autoincrement())
   pluginId        Int
-  plugin          Plugin          @relation(fields: [pluginId], references: [id])
+  plugin          Plugin          @relation(fields: [pluginId], references: [id], onDelete: Cascade)
   pluginVersionId Int?
   pluginVersion   PluginVersion?  @relation(fields: [pluginVersionId], references: [id])
   name            String
@@ -193,9 +193,9 @@ model PluginInstance {
 model ScreenSlot {
   id              Int            @id @default(autoincrement())
   screenId        Int
-  screen          Screen         @relation(fields: [screenId], references: [id])
+  screen          Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
   pluginInstanceId Int
-  pluginInstance  PluginInstance @relation(fields: [pluginInstanceId], references: [id])
+  pluginInstance  PluginInstance @relation(fields: [pluginInstanceId], references: [id], onDelete: Cascade)
   slotKey         String
   x               Int            @default(0)
   y               Int            @default(0)

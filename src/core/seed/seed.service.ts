@@ -40,7 +40,7 @@ export class SeedService implements OnApplicationBootstrap {
       data: { name: 'Demo User', email: 'demo@zenso.local', passwordHash },
     });
 
-    const seedInitialPlugin = process.env.SEED_INITIAL_PLUGIN !== 'false';
+    const seedInitialPlugin = process.env.SEED_INITIAL_PLUGIN?.toLowerCase() !== 'false';
     const plugin = seedInitialPlugin ? await this.downloadAndImportPlugin() : null;
 
     const rawSecret = crypto.randomBytes(32).toString('hex');
