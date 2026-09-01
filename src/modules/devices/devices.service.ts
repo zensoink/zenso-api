@@ -42,7 +42,7 @@ export class DevicesService {
 
     const device = await this.prisma.device.create({
       data: {
-        hardwareId: crypto.randomBytes(6).toString('hex').toUpperCase(),
+        hardwareId: dto.hardware_id,
         name: dto.name,
         width: dto.width ?? 800,
         height: dto.height ?? 480,

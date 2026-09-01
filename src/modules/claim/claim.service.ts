@@ -57,6 +57,7 @@ export class ClaimService {
           displayInfoJson: session.displayInfoJson ?? undefined,
         },
         update: {
+          hardwareId: session.hardwareId,
           userId,
           claimStatus: DeviceClaimStatus.claimed,
           claimedAt: now,

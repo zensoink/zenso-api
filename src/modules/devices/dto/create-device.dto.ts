@@ -2,6 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateDeviceDto {
+  @ApiProperty({
+    description: 'Physical hardware identifier (MAC address without separators)',
+    example: 'E183B1F93399',
+  })
+  @IsString()
+  @IsNotEmpty()
+  hardware_id!: string;
+
   @ApiProperty({ description: 'Human-readable device name', example: 'Living Room Display' })
   @IsString()
   @IsNotEmpty()
