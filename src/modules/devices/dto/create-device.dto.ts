@@ -4,7 +4,7 @@ import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validato
 export class CreateDeviceDto {
   @ApiProperty({
     description: 'Physical hardware identifier (MAC address without separators)',
-    example: 'E183B1F93399',
+    example: 'E183B1F93393',
   })
   @IsString()
   @IsNotEmpty()
