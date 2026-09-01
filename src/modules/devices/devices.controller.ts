@@ -79,37 +79,6 @@ export class DevicesController {
     return this.devicesService.findAll(req.user.userId);
   }
 
-  @Get(':id')
-  @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({
-    summary: 'Get device by ID',
-    description: 'Returns a single device by ID, scoped to the authenticated user.',
-  })
-  @ApiBearerAuth('user-jwt')
-  @ApiOkResponse({ type: DeviceResponseDto, description: 'Device details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Device not found' })
-  findById(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
-    return this.devicesService.findById(id, req.user.userId);
-  }
-
-  @Delete(':id')
-  @UseGuards(UserJwtAuthGuard)
-  @ApiOperation({
-    summary: 'Revoke device (soft delete)',
-    description:
-      'Soft-deletes a device by setting revokedAt. The device will be unable to check in or fetch ' +
-      'display images. This action is reversible by an admin (no dedicated restore endpoint yet).',
-  })
-  @ApiBearerAuth('user-jwt')
-  @HttpCode(HttpStatus.OK)
-  @ApiResponse({ status: 200, description: 'Device revoked' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Device not found' })
-  revoke(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
-    return this.devicesService.revoke(id, req.user.userId);
-  }
-
   @Get('display')
   @UseGuards(DeviceJwtAuthGuard)
   @ApiOperation({
@@ -185,6 +154,37 @@ export class DevicesController {
       .catch((err: unknown) => {
         this.logger.error('Failed to persist contentHash', err);
       });
+  }
+
+  @Get(':id')
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Get device by ID',
+    description: 'Returns a single device by ID, scoped to the authenticated user.',
+  })
+  @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({ type: DeviceResponseDto, description: 'Device details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  findById(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.findById(id, req.user.userId);
+  }
+
+  @Delete(':id')
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Revoke device (soft delete)',
+    description:
+      'Soft-deletes a device by setting revokedAt. The device will be unable to check in or fetch ' +
+      'display images. This action is reversible by an admin (no dedicated restore endpoint yet).',
+  })
+  @ApiBearerAuth('user-jwt')
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Device revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  revoke(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.revoke(id, req.user.userId);
   }
 
   @Post('check-in')
