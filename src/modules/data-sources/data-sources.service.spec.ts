@@ -59,6 +59,16 @@ describe('DataSourcesService', () => {
       expect(mockHandler.resolve).toHaveBeenCalledTimes(2);
     });
 
+    it('honours an explicit shorter TTL', async () => {
+      service.nowFn = () => new Date('2026-08-01T00:00:00Z');
+      const dataSources = [{ id: 'cal', type: 'mock' }];
+
+      await service.resolveAll(dataSources, {}, 'Europe/Warsaw', 1, 60_000);
+      service.nowFn = () => new Date('2026-08-01T00:01:01Z');
+      await service.resolveAll(dataSources, {}, 'Europe/Warsaw', 1, 60_000);
+
+      expect(mockHandler.resolve).toHaveBeenCalledTimes(2);
+    });
     it('keys the cache on configJson', async () => {
       await service.resolveAll([{ id: 'cal', type: 'mock' }], { a: 1 }, 'Europe/Warsaw', 1);
       await service.resolveAll([{ id: 'cal', type: 'mock' }], { a: 2 }, 'Europe/Warsaw', 1);

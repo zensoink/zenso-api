@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService } from '@modules/render';
 import { NotFoundException } from '@nestjs/common';
@@ -18,6 +20,7 @@ describe('DevicesService', () => {
   };
   let mockRenderCacheService: {
     generateKey: jest.Mock;
+    get: jest.Mock;
   };
 
   const mockDevice = {
@@ -82,6 +85,7 @@ describe('DevicesService', () => {
 
     mockRenderCacheService = {
       generateKey: jest.fn().mockReturnValue('test-content-key'),
+      get: jest.fn().mockReturnValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -217,10 +221,12 @@ describe('DevicesService', () => {
       expect(result.palette).toEqual(['#000000', '#ffffff']);
     });
 
-    it('should return contentChanged: true when screen.contentHash is null', async () => {
+    it('should return contentChanged: true when the render cache expired (stale)', async () => {
+      const served = Buffer.from('served-png');
+      mockRenderCacheService.get.mockReturnValue(null);
       mockPrismaService.device.findUnique.mockResolvedValue({
         ...mockDevice,
-        screens: [{ ...mockScreen, contentHash: null }],
+        screens: [{ ...mockScreen, contentHash: createHash('sha256').update(served).digest('hex') }],
       });
 
       const result = await service.checkIn(1, {});
@@ -228,11 +234,11 @@ describe('DevicesService', () => {
       expect(result.contentChanged).toBe(true);
     });
 
-    it('should return contentChanged: true when screen.contentHash differs from current contentKey', async () => {
-      mockRenderCacheService.generateKey.mockReturnValue('current-key');
+    it('should return contentChanged: true when the cached PNG differs from contentHash', async () => {
+      mockRenderCacheService.get.mockReturnValue(Buffer.from('fresh-png'));
       mockPrismaService.device.findUnique.mockResolvedValue({
         ...mockDevice,
-        screens: [{ ...mockScreen, contentHash: 'old-key' }],
+        screens: [{ ...mockScreen, contentHash: 'old-hash' }],
       });
 
       const result = await service.checkIn(1, {});
@@ -240,11 +246,12 @@ describe('DevicesService', () => {
       expect(result.contentChanged).toBe(true);
     });
 
-    it('should return contentChanged: false when screen.contentHash matches current contentKey', async () => {
-      mockRenderCacheService.generateKey.mockReturnValue('matching-key');
+    it('should return contentChanged: false when the cached PNG matches contentHash', async () => {
+      const cached = Buffer.from('current-png');
+      mockRenderCacheService.get.mockReturnValue(cached);
       mockPrismaService.device.findUnique.mockResolvedValue({
         ...mockDevice,
-        screens: [{ ...mockScreen, contentHash: 'matching-key' }],
+        screens: [{ ...mockScreen, contentHash: createHash('sha256').update(cached).digest('hex') }],
       });
 
       const result = await service.checkIn(1, {});

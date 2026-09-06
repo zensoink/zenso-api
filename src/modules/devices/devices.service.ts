@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { PrismaService } from '@core/prisma';
 import { RenderCacheService, SlotRenderInput } from '@modules/render';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -164,8 +166,11 @@ export class DevicesService {
         h: slot.h,
         zIndex: slot.zIndex,
       }));
-      const contentKey = this.renderCacheService.generateKey(screen.id, screen.width, screen.height, slots);
-      contentChanged = screen.contentHash !== contentKey;
+      const cacheKey = this.renderCacheService.generateKey(screen.id, screen.width, screen.height, slots);
+      // Changed when the config key is unknown or the cached PNG differs from the last image served.
+      // ETag/304 on GET /devices/display decides byte-equality.
+      const cached = this.renderCacheService.get(cacheKey);
+      contentChanged = cached === null || screen.contentHash !== createHash('sha256').update(cached).digest('hex');
     }
 
     return {

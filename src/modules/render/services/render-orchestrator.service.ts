@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { PrismaService } from '@core/prisma';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getDefaultPalettes } from 'epdoptimize';
@@ -22,7 +24,9 @@ export class RenderOrchestratorService {
     screenId: number,
     runtimeData?: Record<string, unknown>
   ): Promise<{ buffer: Buffer; contentKey: string }> {
-    const { png, cacheKey } = await this.buildScreenPng(screenId, runtimeData);
+    // Preview always re-renders so the panel shows live data; the fresh PNG
+    // is still written to the cache for the device path to reuse.
+    const { png, cacheKey } = await this.buildScreenPng(screenId, runtimeData, { skipCacheRead: true });
     const { width, height, palette, mode } = await this.getScreenRenderConfig(screenId);
     const buffer = await this.epdImageService.renderPreview({ input: png, width, height, palette, mode });
     return { buffer, contentKey: cacheKey };
@@ -49,7 +53,8 @@ export class RenderOrchestratorService {
 
   private async buildScreenPng(
     screenId: number,
-    runtimeData?: Record<string, unknown>
+    runtimeData?: Record<string, unknown>,
+    opts?: { skipCacheRead?: boolean }
   ): Promise<{ png: Buffer; cacheKey: string }> {
     const screen = await this.prisma.screen.findUnique({
       where: { id: screenId },
@@ -83,9 +88,13 @@ export class RenderOrchestratorService {
     }));
 
     const cacheKey = this.renderCacheService.generateKey(screen.id, screen.width, screen.height, slots, runtimeData);
+    // Cache lifetime follows the screen's refreshRate.
+    const ttlMs = Math.max(30, screen.refreshRate ?? 300) * 1000;
 
-    const cached = this.renderCacheService.get(cacheKey);
-    if (cached) return { png: cached, cacheKey };
+    if (!opts?.skipCacheRead) {
+      const cached = this.renderCacheService.get(cacheKey);
+      if (cached) return { png: cached, cacheKey: hashBuffer(cached) };
+    }
 
     if (screen.slots.length === 0) {
       const blank = await this.screenComposerService.compose({
@@ -93,11 +102,12 @@ export class RenderOrchestratorService {
         height: screen.height,
         slots: [],
       });
-      this.renderCacheService.set(cacheKey, blank);
-      return { png: blank, cacheKey };
+      this.renderCacheService.set(cacheKey, blank, ttlMs);
+      return { png: blank, cacheKey: hashBuffer(blank) };
     }
 
-    const renderedSlots = await this.screenRenderService.renderSlots(screenId, runtimeData);
+    // Data-source cache must not outlive the render cache.
+    const renderedSlots = await this.screenRenderService.renderSlots(screenId, runtimeData, Math.min(ttlMs, 600_000));
 
     const png = await this.screenComposerService.compose({
       width: screen.width,
@@ -105,9 +115,9 @@ export class RenderOrchestratorService {
       slots: renderedSlots,
     });
 
-    this.renderCacheService.set(cacheKey, png);
+    this.renderCacheService.set(cacheKey, png, ttlMs);
 
-    return { png, cacheKey };
+    return { png, cacheKey: hashBuffer(png) };
   }
 
   private async getScreenRenderConfig(screenId: number): Promise<{
@@ -128,4 +138,8 @@ export class RenderOrchestratorService {
   private getDefaultPalette(): string[] {
     return getDefaultPalettes('acep');
   }
+}
+
+function hashBuffer(data: Buffer): string {
+  return createHash('sha256').update(data).digest('hex');
 }
