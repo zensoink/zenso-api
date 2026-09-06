@@ -1,5 +1,4 @@
 import { HttpExceptionFilter } from '@core/filters/http-exception.filter';
-import { PrivateNetworkAccessInterceptor } from '@core/interceptors/private-network-access.interceptor';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -11,10 +10,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const corsOrigin = process.env.FRONTEND_URL ?? 'http://localhost:4200';
-
-  if (process.env.NODE_ENV !== 'production') {
-    app.useGlobalInterceptors(new PrivateNetworkAccessInterceptor());
-  }
 
   app.enableCors({
     origin: corsOrigin,
