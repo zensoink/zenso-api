@@ -43,6 +43,7 @@ export class PluginExecutionService {
     runtimeData?: Record<string, unknown>;
     width: number;
     height: number;
+    dataCacheTtlMs?: number;
   }): Promise<{ html: string }> {
     const instance = await this.prisma.pluginInstance.findUnique({
       where: { id: params.pluginInstanceId },
@@ -111,7 +112,8 @@ export class PluginExecutionService {
       dataSources,
       context.config,
       context.zenso.user.timeZoneIana,
-      instance.id
+      instance.id,
+      params.dataCacheTtlMs
     );
     Object.assign(context, dataSourcesData);
 

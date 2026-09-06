@@ -12,11 +12,6 @@ interface CacheEntry {
 @Injectable()
 export class RenderCacheService {
   private readonly cache = new Map<string, CacheEntry>();
-  private readonly defaultTtlMs = process.env.RENDER_CACHE_TTL_MS
-    ? parseInt(process.env.RENDER_CACHE_TTL_MS, 10)
-    : process.env.NODE_ENV === 'production'
-      ? 3_600_000
-      : 60_000;
 
   generateKey(
     screenId: number,
@@ -46,10 +41,10 @@ export class RenderCacheService {
     return entry.data;
   }
 
-  set(key: string, data: Buffer, ttlMs?: number): void {
+  set(key: string, data: Buffer, ttlMs: number): void {
     this.cache.set(key, {
       data,
-      expiresAt: Date.now() + (ttlMs ?? this.defaultTtlMs),
+      expiresAt: Date.now() + ttlMs,
     });
   }
 

@@ -64,7 +64,7 @@ describe('RenderCacheService', () => {
     it('returns the buffer after set', () => {
       const key = service.generateKey(1, 800, 480, baseSlots);
       const buffer = Buffer.from('test-image-data');
-      service.set(key, buffer);
+      service.set(key, buffer, 60_000);
       expect(service.get(key)).toEqual(buffer);
     });
 
@@ -88,7 +88,7 @@ describe('RenderCacheService', () => {
   describe('clear', () => {
     it('removes all entries', () => {
       const key = service.generateKey(1, 800, 480, baseSlots);
-      service.set(key, Buffer.from('data'));
+      service.set(key, Buffer.from('data'), 60_000);
       service.clear();
       expect(service.get(key)).toBeNull();
     });

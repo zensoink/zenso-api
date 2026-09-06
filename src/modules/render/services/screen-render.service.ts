@@ -22,7 +22,11 @@ export class ScreenRenderService {
     private readonly htmlToImageService: HtmlToImageService
   ) {}
 
-  async renderSlots(screenId: number, runtimeData?: Record<string, unknown>): Promise<RenderedSlot[]> {
+  async renderSlots(
+    screenId: number,
+    runtimeData?: Record<string, unknown>,
+    dataCacheTtlMs?: number
+  ): Promise<RenderedSlot[]> {
     const screen = await this.prisma.screen.findUnique({
       where: { id: screenId },
       include: {
@@ -55,6 +59,7 @@ export class ScreenRenderService {
           runtimeData,
           width: slot.w,
           height: slot.h,
+          dataCacheTtlMs,
         });
 
         const pngBuffer = await this.htmlToImageService.render({

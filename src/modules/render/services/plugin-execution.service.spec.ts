@@ -99,7 +99,8 @@ describe('PluginExecutionService', () => {
       [{ id: 'cal', type: 'ics', config: { urls_field: 'calendar_url' } }],
       { color: 'red' },
       'Europe/Warsaw',
-      5
+      5,
+      undefined
     );
   });
 
@@ -107,7 +108,7 @@ describe('PluginExecutionService', () => {
     const html = await executeWithTemplate('{{ nosuchkey }}', makeManifest());
 
     expect(html).toBe('');
-    expect(mockDataSourcesService.resolveAll).toHaveBeenCalledWith([], { color: 'red' }, 'Europe/Warsaw', 5);
+    expect(mockDataSourcesService.resolveAll).toHaveBeenCalledWith([], { color: 'red' }, 'Europe/Warsaw', 5, undefined);
   });
 
   it('registers the json_safe filter to escape HTML injection', async () => {

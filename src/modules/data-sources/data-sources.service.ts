@@ -50,7 +50,8 @@ export class DataSourcesService {
     dataSources: DataSourceDescriptor[],
     configJson: Record<string, unknown>,
     timeZoneIana: string,
-    pluginInstanceId: number
+    pluginInstanceId: number,
+    cacheTtlMs?: number
   ): Promise<Record<string, unknown>> {
     const now = this.nowFn();
     const today = dateStringAt(timeZoneIana, now);
@@ -77,7 +78,7 @@ export class DataSourcesService {
           this.logger.error(`Data source "${source.id}" (${source.type}) failed`, error);
           data = {};
         }
-        const ttlMs = DEFAULT_TTL_SECONDS * 1000;
+        const ttlMs = cacheTtlMs ?? DEFAULT_TTL_SECONDS * 1000;
         this.cache.set(key, { data, expiresAt: now.getTime() + ttlMs });
       }
 

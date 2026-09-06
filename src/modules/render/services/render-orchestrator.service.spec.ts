@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { PrismaService } from '@core/prisma';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -28,6 +30,7 @@ describe('RenderOrchestratorService', () => {
   };
   let mockEpdImageService: {
     renderPreview: jest.Mock;
+    renderForDevice: jest.Mock;
   };
 
   const mockScreen = {
@@ -99,6 +102,7 @@ describe('RenderOrchestratorService', () => {
 
     mockEpdImageService = {
       renderPreview: jest.fn().mockResolvedValue(mockPreviewBuffer),
+      renderForDevice: jest.fn().mockResolvedValue(mockPreviewBuffer),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -116,7 +120,7 @@ describe('RenderOrchestratorService', () => {
   });
 
   describe('renderPreview', () => {
-    it('returns { buffer, contentKey } where contentKey is a non-empty string', async () => {
+    it('returns { buffer, contentKey } where contentKey is the PNG hash', async () => {
       mockPrismaService.screen.findUnique.mockResolvedValueOnce(mockScreen).mockResolvedValueOnce(mockScreen);
       mockScreenRenderService.renderSlots.mockResolvedValue([
         { x: 0, y: 0, w: 800, h: 480, zIndex: 0, pngBuffer: Buffer.from('slot-png') },
@@ -126,8 +130,7 @@ describe('RenderOrchestratorService', () => {
 
       expect(result).toHaveProperty('buffer');
       expect(result).toHaveProperty('contentKey');
-      expect(result.contentKey).toBe(mockCacheKey);
-      expect(result.contentKey.length).toBeGreaterThan(0);
+      expect(result.contentKey).toBe(createHash('sha256').update(mockComposedPng).digest('hex'));
     });
 
     it('throws NotFoundException for unknown screenId', async () => {
@@ -138,34 +141,53 @@ describe('RenderOrchestratorService', () => {
   });
 
   describe('cache behavior', () => {
-    it('does not call screenRenderService.renderSlots on second call with same screen', async () => {
-      mockPrismaService.screen.findUnique
-        .mockResolvedValueOnce(mockScreen)
-        .mockResolvedValueOnce(mockScreen)
-        .mockResolvedValueOnce(mockScreen)
-        .mockResolvedValueOnce(mockScreen);
+    it('preview always re-renders and never reads the cache', async () => {
+      mockPrismaService.screen.findUnique.mockResolvedValue(mockScreen);
       mockScreenRenderService.renderSlots.mockResolvedValue([
         { x: 0, y: 0, w: 800, h: 480, zIndex: 0, pngBuffer: Buffer.from('slot-png') },
       ]);
 
-      // First call: cache miss -> should render
-      mockRenderCacheService.get.mockReturnValueOnce(null);
+      await service.renderPreview(1);
       await service.renderPreview(1);
 
-      // Cache set called once
-      expect(mockRenderCacheService.set).toHaveBeenCalledTimes(1);
-      expect(mockScreenRenderService.renderSlots).toHaveBeenCalledTimes(1);
+      expect(mockRenderCacheService.get).not.toHaveBeenCalled();
+      expect(mockScreenRenderService.renderSlots).toHaveBeenCalledTimes(2);
+      expect(mockRenderCacheService.set).toHaveBeenCalledTimes(2);
+      expect(mockRenderCacheService.set).toHaveBeenCalledWith(
+        mockCacheKey,
+        mockComposedPng,
+        mockScreen.refreshRate * 1000
+      );
+    });
 
-      // Second call: cache hit -> should NOT render
-      mockRenderCacheService.get.mockReturnValueOnce(mockComposedPng);
-      jest.clearAllMocks();
-      mockRenderCacheService.get.mockReturnValue(mockComposedPng);
+    it('renderForDevice serves a cache hit without re-rendering slots', async () => {
+      const cached = Buffer.from('cached-png');
+      mockPrismaService.screen.findUnique.mockResolvedValue(mockScreen);
+      mockRenderCacheService.get.mockReturnValue(cached);
 
-      await service.renderPreview(1);
+      const result = await service.renderForDevice(1);
 
       expect(mockScreenRenderService.renderSlots).not.toHaveBeenCalled();
       expect(mockScreenComposerService.compose).not.toHaveBeenCalled();
       expect(mockRenderCacheService.set).not.toHaveBeenCalled();
+      expect(result.contentKey).toBe(createHash('sha256').update(cached).digest('hex'));
+    });
+
+    it('renderForDevice re-renders after the refreshRate TTL expires (cache miss)', async () => {
+      mockPrismaService.screen.findUnique.mockResolvedValue(mockScreen);
+      mockRenderCacheService.get.mockReturnValue(null);
+      mockScreenRenderService.renderSlots.mockResolvedValue([
+        { x: 0, y: 0, w: 800, h: 480, zIndex: 0, pngBuffer: Buffer.from('slot-png') },
+      ]);
+
+      await service.renderForDevice(1);
+
+      expect(mockScreenRenderService.renderSlots).toHaveBeenCalledTimes(1);
+      expect(mockRenderCacheService.set).toHaveBeenCalledWith(
+        mockCacheKey,
+        mockComposedPng,
+        mockScreen.refreshRate * 1000
+      );
     });
   });
 
