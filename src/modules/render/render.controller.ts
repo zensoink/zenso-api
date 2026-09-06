@@ -17,7 +17,8 @@ export class RenderController {
     summary: 'Render preview image for screen',
     description:
       'Renders the full screen composition (all slot templates executed, composed, and composited) ' +
-      'into a PNG preview image. This is useful for testing layout and content before deploying to a device.',
+      'into a PNG preview image. Always re-renders with live data, never served from cache. ' +
+      'This is useful for testing layout and content before deploying to a device.',
   })
   @ApiResponse({
     status: 200,
