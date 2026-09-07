@@ -17,4 +17,9 @@ export class CreateUserDTO {
   @MinLength(8)
   @IsNotEmpty()
   password!: string;
+
+  @ApiPropertyOptional({ description: 'IANA timezone for rendering user screens', example: 'Europe/Warsaw' })
+  @IsString()
+  @IsOptional()
+  timeZoneIana?: string;
 }

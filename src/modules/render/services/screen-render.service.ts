@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { resolveTimeZone } from '@modules/data-sources/timezone';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 
@@ -30,6 +31,7 @@ export class ScreenRenderService {
     const screen = await this.prisma.screen.findUnique({
       where: { id: screenId },
       include: {
+        user: true,
         slots: {
           orderBy: { renderOrder: 'asc' },
           include: {
@@ -51,6 +53,8 @@ export class ScreenRenderService {
       return [];
     }
 
+    const timeZone = resolveTimeZone(screen.timeZoneIana, screen.user?.timeZoneIana);
+
     return Promise.all(
       screen.slots.map(async slot => {
         const { html } = await this.pluginExecutionService.execute({
@@ -68,6 +72,7 @@ export class ScreenRenderService {
           height: slot.h,
           assetDir: slot.pluginInstance.pluginVersion?.installPath ?? undefined,
           waitForReady: this.isScriptCapable(slot.pluginInstance.pluginVersion?.manifestJson),
+          timeZone,
         });
 
         return {

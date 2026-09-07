@@ -31,4 +31,12 @@ export class CreateScreenDTO {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'IANA timezone for rendering (falls back to user, then server default)',
+    example: 'Europe/Warsaw',
+  })
+  @IsOptional()
+  @IsString()
+  timeZoneIana?: string;
 }

@@ -1,4 +1,5 @@
 import { PrismaService } from '@core/prisma';
+import { resolveTimeZone, tzOffsetMinutes } from '@modules/data-sources/timezone';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 
@@ -75,6 +76,8 @@ export class ContextAggregationService {
     }
 
     const orientation: 'landscape' | 'portrait' = params.width > params.height ? 'landscape' : 'portrait';
+    const timeZoneIana = resolveTimeZone(screen.timeZoneIana, screen.user.timeZoneIana);
+    const now = new Date();
 
     return {
       zenso: {
@@ -84,8 +87,8 @@ export class ContextAggregationService {
           firstName: 'Tytus',
           locale: 'pl-PL',
           language: 'pl',
-          timeZoneIana: 'Europe/Warsaw',
-          utcOffset: 7200,
+          timeZoneIana,
+          utcOffset: Math.round(tzOffsetMinutes(timeZoneIana, now) * 60),
         },
         device: {
           id: screen.device?.hardwareId ?? null,
