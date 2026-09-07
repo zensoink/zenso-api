@@ -45,4 +45,13 @@ export class UpdateScreenDTO {
   @IsOptional()
   @IsInt()
   refreshRate?: number;
+
+  @ApiPropertyOptional({
+    description: 'IANA timezone for rendering (falls back to user, then server default)',
+    example: 'Europe/Warsaw',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  timeZoneIana?: string | null;
 }

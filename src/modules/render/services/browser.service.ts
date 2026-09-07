@@ -5,6 +5,7 @@ import puppeteer, { Browser, HTTPRequest, Page } from 'puppeteer';
 
 interface RenderOptions {
   waitForReady?: boolean;
+  timeZone?: string;
 }
 
 const READY_POLL_INTERVAL_MS = 100;
@@ -45,6 +46,10 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
 
     try {
       await page.setViewport({ width, height, deviceScaleFactor: 1 });
+
+      if (options?.timeZone) {
+        await page.emulateTimezone(options.timeZone);
+      }
 
       if (waitForReady) {
         await this.configureRequestGuard(page, assetDir);

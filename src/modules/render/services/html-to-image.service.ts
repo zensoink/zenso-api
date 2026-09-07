@@ -13,6 +13,7 @@ export class HtmlToImageService {
     height: number;
     assetDir?: string;
     waitForReady?: boolean;
+    timeZone?: string;
   }): Promise<Buffer> {
     const fullHtml = getWidgetTemplate(params.html, {
       width: params.width,
@@ -21,6 +22,7 @@ export class HtmlToImageService {
 
     return this.browserService.renderHtmlToPng(fullHtml, params.width, params.height, params.assetDir, {
       waitForReady: params.waitForReady,
+      timeZone: params.timeZone,
     });
   }
 }

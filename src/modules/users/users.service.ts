@@ -1,5 +1,6 @@
 import { PrismaService } from '@core/prisma';
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { isValidTimeZone } from '@modules/data-sources/timezone';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -14,6 +15,10 @@ export class UsersService {
   async createUser(createUserDTO: CreateUserDTO) {
     this.logger.debug(`Creating user: ${createUserDTO.email}`);
 
+    if (createUserDTO.timeZoneIana !== undefined && !isValidTimeZone(createUserDTO.timeZoneIana)) {
+      throw new BadRequestException(`Invalid IANA timezone: ${createUserDTO.timeZoneIana}`);
+    }
+
     const passwordHash = await bcrypt.hash(createUserDTO.password, 10);
 
     try {
@@ -22,6 +27,7 @@ export class UsersService {
           name: createUserDTO.name ?? null,
           email: createUserDTO.email,
           passwordHash,
+          timeZoneIana: createUserDTO.timeZoneIana,
         },
       });
     } catch (e) {

@@ -45,7 +45,7 @@ export function todayLabel(timeZone: string, date: Date): string {
 export function tzOffsetMinutes(timeZone: string, date: Date): number {
   const { y, m, d, h, min, s } = tzPartsAt(timeZone, date);
   const asUtc = Date.UTC(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s));
-  return (asUtc - date.getTime()) / 60_000;
+  return Math.round((asUtc - date.getTime()) / 60_000);
 }
 
 export function tzOffsetString(timeZone: string, date: Date): string {
@@ -73,4 +73,27 @@ export function utcFromLocal(timeZone: string, year: number, month: number, day:
 
 export function localDateString(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+const FALLBACK_TIME_ZONE = 'Europe/Warsaw';
+
+export function isValidTimeZone(value: unknown): boolean {
+  if (typeof value !== 'string' || value.length === 0) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function defaultTimeZone(): string {
+  const env = process.env.ZENSO_DEFAULT_TIMEZONE;
+  return typeof env === 'string' && isValidTimeZone(env) ? env : FALLBACK_TIME_ZONE;
+}
+
+export function resolveTimeZone(screenTimeZone: string | null | undefined, userTimeZone?: string | null): string {
+  if (typeof screenTimeZone === 'string' && isValidTimeZone(screenTimeZone)) return screenTimeZone;
+  if (typeof userTimeZone === 'string' && isValidTimeZone(userTimeZone)) return userTimeZone;
+  return defaultTimeZone();
 }

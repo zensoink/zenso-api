@@ -36,6 +36,13 @@ export class ScreenResponseDto {
   @ApiProperty({ description: 'Render interval in seconds', example: 300 })
   refreshRate!: number;
 
+  @ApiPropertyOptional({
+    description: 'IANA timezone override (null = user, then server default)',
+    example: 'Europe/Warsaw',
+    nullable: true,
+  })
+  timeZoneIana?: string | null;
+
   @ApiPropertyOptional({ description: 'Current content hash (ETag source)', example: 'a1b2c3d4e5f6...' })
   contentHash?: string | null;
 

@@ -1,5 +1,6 @@
 import { PrismaService } from '@core/prisma';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { isValidTimeZone } from '@modules/data-sources/timezone';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CreateScreenDTO } from './dto/create-screen.dto';
 import { UpdateScreenDTO } from './dto/update-screen.dto';
@@ -9,6 +10,9 @@ export class ScreensService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: number, dto: CreateScreenDTO) {
+    if (dto.timeZoneIana !== undefined && !isValidTimeZone(dto.timeZoneIana)) {
+      throw new BadRequestException(`Invalid IANA timezone: ${dto.timeZoneIana}`);
+    }
     return this.prisma.screen.create({
       data: {
         name: dto.name,
@@ -18,6 +22,7 @@ export class ScreensService {
         height: dto.height ?? 480,
         deviceId: dto.deviceId,
         isActive: dto.isActive ?? true,
+        timeZoneIana: dto.timeZoneIana,
       },
     });
   }
@@ -58,6 +63,9 @@ export class ScreensService {
     const existing = await this.prisma.screen.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Screen not found');
+    }
+    if (dto.timeZoneIana !== undefined && dto.timeZoneIana !== null && !isValidTimeZone(dto.timeZoneIana)) {
+      throw new BadRequestException(`Invalid IANA timezone: ${dto.timeZoneIana}`);
     }
 
     return this.prisma.screen.update({
