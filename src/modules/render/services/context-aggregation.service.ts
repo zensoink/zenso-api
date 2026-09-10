@@ -6,36 +6,28 @@ import { z } from 'zod';
 export interface ZensoUserContext {
   id: string;
   name: string | null;
-  firstName: string;
+  first_name: string;
   locale: string;
   language: string;
-  timeZoneIana: string;
-  utcOffset: number;
-  // Canonical snake_case aliases (zenso-plugin-template contract, mock/zenso.json)
-  first_name: string;
   time_zone_iana: string;
   utc_offset: number;
 }
 
 export interface ZensoDeviceContext {
   id: string | null;
-  friendlyId: string | null;
+  friendly_id: string | null;
   width: number;
   height: number;
   orientation: 'landscape' | 'portrait';
 }
 
 export interface ZensoSystemContext {
-  timestampUtc: number;
-  coreVersion: string;
-  firmwareVersion: string;
-  // Canonical snake_case aliases (zenso-plugin-template contract, mock/zenso.json)
   timestamp_utc: number;
   core_version: string;
   firmware_version: string;
 }
 
-export interface ZensoManifestContext {
+export interface ZensoPluginContext {
   id: string | null;
   name: string | null;
   version: string | null;
@@ -43,8 +35,6 @@ export interface ZensoManifestContext {
   thumbnail: string | null;
   author: Record<string, unknown> | null;
   license: string | null;
-  coreMin: string | null;
-  // Canonical snake_case alias (zenso-plugin-template contract: plugin.core_min)
   core_min: string | null;
 }
 
@@ -56,11 +46,9 @@ export interface ZensoContext {
 
 export interface AggregatedContext {
   zenso: ZensoContext;
-  manifest: ZensoManifestContext;
-  // Canonical alias of `manifest` (zenso-plugin-template contract: plugin scope,
-  // identity from package.json + id from zenso.config.json)
-  plugin: ZensoManifestContext;
+  plugin: ZensoPluginContext;
   config: Record<string, unknown>;
+  data?: Record<string, unknown>;
   width: number;
   height: number;
   [key: string]: unknown;
@@ -97,7 +85,7 @@ export class ContextAggregationService {
     const firmwareVersion = screen.device?.firmwareVersion ?? '0.0.0';
     const firstName = screen.user.name?.split(' ')[0] || 'Tytus';
 
-    const manifest: ZensoManifestContext = {
+    const plugin: ZensoPluginContext = {
       id: z
         .string()
         .nullable()
@@ -123,10 +111,6 @@ export class ContextAggregationService {
         .string()
         .nullable()
         .parse(params.manifestJson?.['license'] ?? null),
-      coreMin: z
-        .string()
-        .nullable()
-        .parse(params.manifestJson?.['core_min'] ?? null),
       core_min: z
         .string()
         .nullable()
@@ -138,33 +122,26 @@ export class ContextAggregationService {
         user: {
           id: `user_${screen.user.id}`,
           name: screen.user.name ?? null,
-          firstName,
+          first_name: firstName,
           locale: 'pl-PL',
           language: 'pl',
-          timeZoneIana,
-          utcOffset,
-          first_name: firstName,
           time_zone_iana: timeZoneIana,
           utc_offset: utcOffset,
         },
         device: {
           id: screen.device?.hardwareId ?? null,
-          friendlyId: screen.device?.hardwareId ?? null,
+          friendly_id: screen.device?.hardwareId ?? null,
           width: params.width,
           height: params.height,
           orientation,
         },
         system: {
-          timestampUtc,
-          coreVersion,
-          firmwareVersion,
           timestamp_utc: timestampUtc,
           core_version: coreVersion,
           firmware_version: firmwareVersion,
         },
       },
-      manifest,
-      plugin: manifest,
+      plugin,
       config: params.configJson ?? {},
       ...params.runtimeData,
       width: params.width,

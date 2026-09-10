@@ -32,7 +32,7 @@ describe('ContextAggregationService timezone', () => {
 
   async function timeZoneIana() {
     const ctx = await service.buildContext({ screenId: 1, width: 800, height: 480 });
-    return ctx.zenso.user.timeZoneIana;
+    return ctx.zenso.user.time_zone_iana;
   }
 
   it('prefers the screen timezone over user and default', async () => {
@@ -71,15 +71,31 @@ describe('ContextAggregationService timezone', () => {
     mockScreen({ timeZoneIana: 'Europe/Warsaw' });
     const summer = await service.buildContext({ screenId: 1, width: 800, height: 480 });
 
-    expect(summer.zenso.system.timestampUtc).toBeGreaterThan(0);
-    expect(summer.zenso.user.utcOffset).toBe(7200);
+    expect(summer.zenso.system.timestamp_utc).toBeGreaterThan(0);
+    expect(summer.zenso.user.utc_offset).toBe(7200);
 
     jest.useFakeTimers().setSystemTime(new Date('2026-01-15T12:00:00Z'));
     try {
       const winter = await service.buildContext({ screenId: 1, width: 800, height: 480 });
-      expect(winter.zenso.user.utcOffset).toBe(3600);
+      expect(winter.zenso.user.utc_offset).toBe(3600);
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('exposes the plugin scope without legacy aliases', async () => {
+    mockScreen();
+    const ctx = await service.buildContext({
+      screenId: 1,
+      width: 800,
+      height: 480,
+      manifestJson: { id: 'zenso/test', name: 'Test', core_min: '0.0.0' },
+      pluginVersion: '1.2.3',
+    });
+
+    expect(ctx.plugin).toMatchObject({ id: 'zenso/test', name: 'Test', version: '1.2.3', core_min: '0.0.0' });
+    expect('manifest' in ctx).toBe(false);
+    expect(ctx.zenso.user).not.toHaveProperty('timeZoneIana');
+    expect(ctx.zenso.system).not.toHaveProperty('timestampUtc');
   });
 });

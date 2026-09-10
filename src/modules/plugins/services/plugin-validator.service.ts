@@ -26,7 +26,7 @@ export class PluginValidatorService {
     await this.assertExists(indexPath, 'index.liquid is missing');
 
     const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
-    const manifest = strictPluginManifestSchema.parse(this.normalizeConfigSchema(JSON.parse(manifestRaw)));
+    const manifest = strictPluginManifestSchema.parse(JSON.parse(manifestRaw));
 
     await this.assertNoForbiddenFiles(rootDir, manifest.capabilities?.includes('script') === true);
 
@@ -41,20 +41,6 @@ export class PluginValidatorService {
 
   toFilesystemSlug(manifestId: string): string {
     return manifestId.replaceAll('/', '__');
-  }
-
-  private normalizeConfigSchema(raw: Record<string, unknown>): Record<string, unknown> {
-    const configSchema = raw['config_schema'];
-    const isEmpty =
-      configSchema === undefined ||
-      configSchema === null ||
-      (typeof configSchema === 'object' && !Array.isArray(configSchema) && Object.keys(configSchema).length === 0);
-
-    if (isEmpty) {
-      return { ...raw, config_schema: { type: 'object', properties: {} } };
-    }
-
-    return raw;
   }
 
   private async assertExists(filePath: string, message: string) {

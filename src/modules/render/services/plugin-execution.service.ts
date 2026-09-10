@@ -113,14 +113,11 @@ export class PluginExecutionService {
     const dataSourcesData = await this.dataSourcesService.resolveAll(
       dataSources,
       context.config,
-      context.zenso.user.timeZoneIana,
+      context.zenso.user.time_zone_iana,
       instance.id,
       params.dataCacheTtlMs
     );
-    // Canonical scope (zenso-plugin-template contract: data.<id>); flat keys kept
-    // as transition aliases for templates written against the old contract.
     context.data = dataSourcesData;
-    Object.assign(context, dataSourcesData);
 
     const liquid = new Liquid({ root: templateDir });
 

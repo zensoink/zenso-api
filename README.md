@@ -92,8 +92,8 @@ src/
 
 Plugins are built with `zenso-plugin-template` and uploaded as `plugin.zip`
 (`POST /plugins/import/zip`). Zip root layout: `manifest.json` + `index.liquid`
-(full document, no extra wrapping) + `assets/*` + `favicon.ico`, optionally
-`README.md` / `LICENSE` (stored on disk, not served).
+(full document, rendered as-is) + `assets/*` + `favicon.ico`, optionally
+`README.md` / `LICENSE` (`README.md` is served as the plugin hello page, see below).
 
 - **Manifest**: `manifest.json` is generated from `zenso.config.json` (contract:
   `id`, `thumbnail`, `schema_version`, `core_min`, `capabilities`,
@@ -101,11 +101,11 @@ Plugins are built with `zenso-plugin-template` and uploaded as `plugin.zip`
   `version`, `author`, `description`, `license`). The backend validates strictly:
   `id`, non-empty `name`, SemVer `version`, `schema_version: 1`, SemVer
   `core_min` are all required — stricter than the canonical JSON schema.
-- **Template context**: `zenso` (snake_case: `user.time_zone_iana`, `user.locale`,
-  `device.width/height`, `system.timestamp_utc`), `plugin` identity,
-  `config` instance settings, `data.<id>` per declared `data_sources` entry.
-  Legacy aliases (`manifest` scope, camelCase keys, flat source keys) still work
-  during the transition period.
+- **Template context** (new-template shapes only, no legacy aliases): `zenso`
+  (snake_case: `user.time_zone_iana`, `user.locale`, `device.width/height`,
+  `system.timestamp_utc`), `plugin` identity, `config` instance settings,
+  `data.<id>` per declared `data_sources` entry. Old shapes (`manifest` scope,
+  camelCase keys, flat source keys) are not supported.
 - **Assets**: `{{ 'assets/logo.png' | asset_url }}` inlines files as base64 data
   URIs; relative `assets/*` head references (bundled CSS/JS) load from the local
   install dir under a request guard (no network).

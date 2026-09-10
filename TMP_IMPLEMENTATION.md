@@ -105,7 +105,6 @@ author-influenced logic behind a single service. It does NOT replace Chromium.
 - [ ] README hello page: disk-via-assets (recommended, sec. I) vs DB column?
 - [ ] Icon/thumbnail/readme URLs: relative (recommended) vs absolute with host?
 - [ ] JS screen: warn-first (current) vs strict reject?
-- [ ] Aliases removal: next release drops `manifest`/camelCase/flat keys?
 - [ ] Deep uninstall: `force=true` deletes all instances (recommended) vs only unassigned ones?
 - [ ] Orphan visibility for the panel (`screenIds`/`slotCount` on instance list): needed or force flag alone enough?
 
@@ -194,3 +193,23 @@ flag needed.
 - [x] Specs: orphans auto-removed + dir deleted; no instances → clean uninstall;
       assigned instance → 409 with no DB/disk mutation
 - [x] Docs: Swagger `uninstall` description + 409 text updated
+
+## L. Old-code removal (backend-only, no deprecation)
+
+Dropped the cross-repo camelCase rename: not worth 5 repos of churn for taste.
+The sec. J boundary rule stands (wire snake_case, code camelCase). What goes away
+is the transition debt inside this repo — old shapes rejected outright, fresh code:
+
+- [x] `ContextAggregationService`: snake_case-only keys + `plugin` scope + `data`
+      nesting (transition aliases deleted, not deprecated)
+- [x] `PluginExecutionService`: drop flat `Object.assign` merge
+- [x] `HtmlToImageService`: drop `isFullDocument` + wrap branch, pass HTML straight;
+      delete `render/templates/plugin-iframe.template.ts` (+ index export)
+- [x] `PluginValidatorService`: delete `normalizeConfigSchema`
+      (new builds always emit `{type, properties}`; bare `{}` now 400s)
+- [x] Delete dead `interfaces/plugin-manifest.ts` (zero importers, pre-zod relic)
+- [x] Specs rewritten to new-only shapes (`context-aggregation`,
+      `plugin-execution`, validator `manifestWith` uses full `config_schema` form)
+- [x] README: replace "legacy aliases still work" with the new-only contract
+- [x] Verify: build, full suite, lint, live-`plugin.zip` end-to-end;
+      old-shape (camelCase/`manifest`/flat) template renders nothing by design

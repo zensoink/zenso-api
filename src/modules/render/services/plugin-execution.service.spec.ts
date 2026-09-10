@@ -53,7 +53,7 @@ describe('PluginExecutionService', () => {
     };
     mockContextAggregationService = {
       buildContext: jest.fn().mockResolvedValue({
-        zenso: { user: { timeZoneIana: 'Europe/Warsaw' } },
+        zenso: { user: { time_zone_iana: 'Europe/Warsaw' } },
         config: { color: 'red' },
       }),
     };
@@ -87,12 +87,12 @@ describe('PluginExecutionService', () => {
     return html;
   }
 
-  it('resolves declared data_sources and merges them into the template context', async () => {
+  it('resolves declared data_sources under the data scope only', async () => {
     const manifestJson = makeManifest({
       data_sources: [{ id: 'cal', type: 'ics', config: { urls_field: 'calendar_url' } }],
     });
 
-    const html = await executeWithTemplate('{{ cal.events.first.title }}', manifestJson);
+    const html = await executeWithTemplate('{{ data.cal.events.first.title }}', manifestJson);
 
     expect(html).toBe('Sync');
     expect(mockDataSourcesService.resolveAll).toHaveBeenCalledWith(
@@ -102,6 +102,7 @@ describe('PluginExecutionService', () => {
       5,
       undefined
     );
+    await expect(executeWithTemplate('{{ cal.events.first.title }}', manifestJson)).resolves.toBe('');
   });
 
   it('passes an empty data_sources list when the manifest declares none', async () => {

@@ -27,7 +27,7 @@ function manifestObject(capabilities?: string[]): Record<string, unknown> {
     name: 'Test Plugin',
     schema_version: 1,
     core_min: '0.0.0',
-    config_schema: {},
+    config_schema: { type: 'object', properties: {} },
     ...(capabilities ? { capabilities } : {}),
   };
 }
