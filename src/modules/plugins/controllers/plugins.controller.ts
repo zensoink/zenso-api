@@ -130,13 +130,13 @@ export class PluginsController {
   @ApiOperation({
     summary: 'Uninstall plugin by ID',
     description:
-      'Removes a plugin and its local storage. Blocks uninstallation if any active plugin instances ' +
-      'reference the plugin (returns 409).',
+      'Removes a plugin, its versions, on-disk files, and any plugin instances not assigned to screens. ' +
+      'Returns 409 only when an instance is still placed on a screen — remove it from the screen first.',
   })
   @ApiBearerAuth('user-jwt')
   @ApiResponse({ status: 200, description: 'Plugin uninstalled' })
   @ApiResponse({ status: 404, description: 'Plugin not found' })
-  @ApiResponse({ status: 409, description: 'Plugin is in use by active plugin instances' })
+  @ApiResponse({ status: 409, description: 'Plugin instance still placed on a screen' })
   uninstall(@Param('id', ParseIntPipe) id: number) {
     return this.pluginsService.uninstall(id);
   }

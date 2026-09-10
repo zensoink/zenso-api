@@ -1,6 +1,7 @@
 export * from './controllers';
 export * from './dto/install-from-registry.dto';
 export * from './plugins.module';
+export * from './services/isolate.service';
 export * from './services/mock-registry-client.service';
 export * from './services/plugin-import.service';
 export * from './services/plugin-storage.service';

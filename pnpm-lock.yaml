@@ -62,6 +62,9 @@ importers:
       epdoptimize:
         specifier: 1.0.3
         version: 1.0.3
+      isolated-vm:
+        specifier: ^7.0.1
+        version: 7.0.1
       liquidjs:
         specifier: ^10.25.7
         version: 10.25.7
@@ -3170,6 +3173,10 @@ packages:
 
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
+
+  isolated-vm@7.0.1:
+    resolution: {integrity: sha512-nBCQ1hXEaYKYJ79wwfhaF44ITOJC30Hw0wPEsFeNsdD3hdeKK7FW1SGMQYBUA+qasvkqdOazI+iBuq0lcbN/aw==}
+    engines: {node: '>=24.0.0'}
 
   istanbul-lib-coverage@3.2.2:
     resolution: {integrity: sha512-O8dpsF+r0WV/8MNRKfnmrtCWhuKjxrq2w+jpzBL5UZKTi2LeVWnWOmWRxFlesJONmc+wLAGvKQZEOanko0LFTg==}
@@ -8083,6 +8090,10 @@ snapshots:
   isarray@2.0.5: {}
 
   isexe@2.0.0: {}
+
+  isolated-vm@7.0.1:
+    dependencies:
+      node-gyp-build: 4.8.4
 
   istanbul-lib-coverage@3.2.2: {}
 

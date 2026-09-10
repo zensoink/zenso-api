@@ -2,17 +2,21 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { z } from 'zod';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
-import { pluginManifestSchema } from '../interfaces/plugin-manifest.schema';
+import { StrictPluginManifest, strictPluginManifestSchema } from '../interfaces/plugin-manifest.strict';
+import { IsolateService } from './isolate.service';
 
 const MAX_JAVASCRIPT_BYTES = 2 * 1024 * 1024;
 
 @Injectable()
 export class PluginValidatorService {
+  private readonly logger = new Logger(PluginValidatorService.name);
+
+  constructor(private readonly isolateService: IsolateService) {}
+
   async validateExtractedPlugin(rootDir: string): Promise<{
-    manifest: z.infer<typeof pluginManifestSchema>;
+    manifest: StrictPluginManifest;
     checksumSha256: string;
   }> {
     const manifestPath = path.join(rootDir, 'manifest.json');
@@ -22,9 +26,13 @@ export class PluginValidatorService {
     await this.assertExists(indexPath, 'index.liquid is missing');
 
     const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
-    const manifest = pluginManifestSchema.parse(this.normalizeConfigSchema(JSON.parse(manifestRaw)));
+    const manifest = strictPluginManifestSchema.parse(this.normalizeConfigSchema(JSON.parse(manifestRaw)));
 
     await this.assertNoForbiddenFiles(rootDir, manifest.capabilities?.includes('script') === true);
+
+    // Warn-first behavioural screen of bundled JS (never rejects: third-party bundles
+    // legitimately touch DOM APIs beyond the stub; Chromium remains the runtime sandbox).
+    await this.screenBundledJavaScript(rootDir);
 
     const checksumSha256 = await this.computeDirectoryChecksum(rootDir);
 
@@ -77,6 +85,23 @@ export class PluginValidatorService {
 
     if (javaScriptTotalBytes > MAX_JAVASCRIPT_BYTES) {
       throw new BadRequestException('Total JavaScript size exceeds 2 MB limit');
+    }
+  }
+
+  private async screenBundledJavaScript(rootDir: string): Promise<void> {
+    const files = await this.walk(rootDir);
+    const bundles = files.filter(file => path.extname(file).toLowerCase() === '.js');
+
+    for (const file of bundles) {
+      const relative = path.relative(rootDir, file);
+      const source = await fs.readFile(file, 'utf-8');
+      const result = this.isolateService.screenBundle(source);
+
+      if (!result.compiled) {
+        this.logger.warn(`Bundle screen: ${relative} failed to run in isolate (${result.error ?? 'unknown'})`);
+      } else if (!result.readyFlag) {
+        this.logger.warn(`Bundle screen: ${relative} did not set __ZENSO_READY__ in isolate smoke run`);
+      }
     }
   }
 

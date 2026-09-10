@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { pluginManifestSchema } from '../interfaces/plugin-manifest.schema';
+import { strictPluginManifestSchema } from '../interfaces/plugin-manifest.strict';
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return typeof error === 'object' && error !== null && 'code' in error;
@@ -72,7 +72,7 @@ export class PluginStorageService {
     }
 
     const raw = await fs.readFile(manifestPath, 'utf-8');
-    return pluginManifestSchema.parse(JSON.parse(raw));
+    return strictPluginManifestSchema.parse(JSON.parse(raw));
   }
 
   async moveExtractedPluginToVersionPath(extractedDir: string, slug: string, version: string): Promise<void> {
@@ -91,5 +91,9 @@ export class PluginStorageService {
       await fs.cp(extractedDir, targetDir, { recursive: true });
       await fs.rm(extractedDir, { recursive: true, force: true });
     }
+  }
+
+  async deletePluginDir(slug: string): Promise<void> {
+    await fs.rm(this.getPluginRoot(slug), { recursive: true, force: true });
   }
 }
