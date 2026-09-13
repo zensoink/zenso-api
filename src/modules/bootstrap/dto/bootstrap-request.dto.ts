@@ -1,10 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsObject, IsOptional, IsString, Matches } from 'class-validator';
 
 export class BootstrapRequestDto {
-  @ApiProperty({ description: 'Unique hardware identifier', example: 'e4:5f:01:23:45:67' })
+  @ApiProperty({
+    description: 'Canonical hardware identifier (12 uppercase hex chars, MAC without separators)',
+    example: 'E45F01234567',
+  })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^[0-9A-F]{12}$/, {
+    message: 'hardware_id must be the canonical 12-char uppercase MAC without separators (e.g. E45F01234567)',
+  })
   hardware_id!: string;
 
   @ApiPropertyOptional({ description: 'Firmware version string', example: '1.2.3' })
