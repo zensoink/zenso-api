@@ -14,6 +14,8 @@ const ALLOWED_EXTENSIONS = new Set([
   '.gif',
   '.svg',
   '.webp',
+  '.ico',
+  '.md',
   '.woff',
   '.woff2',
   '.ttf',
@@ -31,6 +33,8 @@ const MIME_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.md': 'text/markdown; charset=utf-8',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
@@ -75,7 +79,9 @@ export class PluginAssetsController {
 
     const mime = MIME_TYPES[ext] ?? 'application/octet-stream';
     res.setHeader('Content-Type', mime);
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    // Docs are re-read per version and may change between releases; everything
+    // else is content-addressed by plugin version and safe to cache forever.
+    res.setHeader('Cache-Control', ext === '.md' ? 'public, max-age=300' : 'public, max-age=31536000, immutable');
 
     return new StreamableFile(content);
   }

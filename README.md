@@ -88,6 +88,46 @@ src/
 - **Rendering Engine**: Puppeteer-based image generation
 - **Caching Layer**: Hash-based change detection
 
+## Plugin Contract
+
+Plugins are built with `zenso-plugin-template` and uploaded as `plugin.zip`
+(`POST /plugins/import/zip`). Zip root layout: `manifest.json` + `index.liquid`
+(full document, rendered as-is) + `assets/*` + `favicon.ico`, optionally
+`README.md` / `LICENSE` (`README.md` is served as the plugin hello page, see below).
+
+- **Manifest**: `manifest.json` is generated from `zenso.config.json` (contract:
+  `id`, `thumbnail`, `schema_version`, `core_min`, `capabilities`,
+  `config_schema`, `data_sources`) + `package.json` (identity: `name`,
+  `version`, `author`, `description`, `license`). The backend validates strictly:
+  `id`, non-empty `name`, SemVer `version`, `schema_version: 1`, SemVer
+  `core_min` are all required — stricter than the canonical JSON schema.
+- **Template context** (new-template shapes only, no legacy aliases): `zenso`
+  (snake_case: `user.time_zone_iana`, `user.locale`, `device.width/height`,
+  `system.timestamp_utc`), `plugin` identity, `config` instance settings,
+  `data.<id>` per declared `data_sources` entry. Old shapes (`manifest` scope,
+  camelCase keys, flat source keys) are not supported.
+- **Assets**: `{{ 'assets/logo.png' | asset_url }}` inlines files as base64 data
+  URIs; relative `assets/*` head references (bundled CSS/JS) load from the local
+  install dir under a request guard (no network).
+- **Script capability**: `src/main.ts` → `assets/main.js`, only when
+  `capabilities` includes `"script"`. Bundles must set
+  `window.__ZENSO_READY__ = true` after rendering (screenshot falls back to a
+  timeout). Uploads are additionally smoke-screened with `isolated-vm`
+  (warn-only); Chromium remains the runtime sandbox.
+- **Icons & hello page**: the frontend lists plugins via `GET /plugins/installed`
+  (`InstalledPluginResponseDto`), which exposes `thumbnailUrl`, an `icons` array
+  (`favicon.ico` + `favicon-16x16.png` / `favicon-32x32.png` when shipped) and
+  `readmeUrl` (`README.md` rendered as the plugin hello page). All URLs are
+  relative — the frontend prefixes the API host. Files are served from the
+  versioned install dir via `GET /plugins/assets/:slug/:version/*` (public).
+- **Case convention**: wire = snake_case, code/DB = camelCase. Manifest JSON,
+  the remote schema and the Liquid context use `core_min` / `time_zone_iana` /
+  `timestamp_utc` (template contract); Prisma columns, TS interfaces and DTOs
+  use `coreMin` / `timeZoneIana` / `timestampUtc`. Translation happens at exactly
+  two boundaries — `PluginImportService` (manifest → DB) and
+  `ContextAggregationService` (DB → Liquid) — keep it that way, don't rename
+  either side.
+
 ## Development Guidelines
 
 For comprehensive development guidelines, coding standards, and project conventions, see **[AGENTS.md](./AGENTS.md)**.

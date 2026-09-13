@@ -51,7 +51,10 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
         await page.emulateTimezone(options.timeZone);
       }
 
-      if (waitForReady) {
+      // Guard local file loading whenever an asset dir is known (new template builds
+      // reference assets/* relatively even without the script capability); the
+      // __ZENSO_READY__ wait below stays gated on waitForReady.
+      if (assetDir) {
         await this.configureRequestGuard(page, assetDir);
       }
 

@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import { PrismaService } from '@core/prisma';
 import { toPrismaJson } from '@core/prisma/utils';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -7,14 +9,22 @@ import { z } from 'zod';
 import { InstallFromRegistryDTO } from '../dto/install-from-registry.dto';
 import { RegistryPluginDetail } from '../interfaces/registry-types';
 import { PluginImportService } from './plugin-import.service';
+import { PluginStorageService } from './plugin-storage.service';
 import { RegistryClient } from './registry-client.service';
+
+const KNOWN_ICONS = [
+  { file: 'favicon.ico', sizes: 'any', type: 'image/x-icon' },
+  { file: 'favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+  { file: 'favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+];
 
 @Injectable()
 export class PluginsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly registryClient: RegistryClient,
-    private readonly pluginImportService: PluginImportService
+    private readonly pluginImportService: PluginImportService,
+    private readonly pluginStorageService: PluginStorageService
   ) {}
 
   async getInstalledPlugins() {
@@ -27,7 +37,7 @@ export class PluginsService {
       orderBy: { name: 'asc' },
     });
 
-    return plugins.map(p => this.toInstalledPluginResponse(p));
+    return Promise.all(plugins.map(p => this.toInstalledPluginResponse(p)));
   }
 
   async getInstalledPluginById(id: number) {
@@ -47,7 +57,9 @@ export class PluginsService {
     return this.toInstalledPluginResponse(plugin);
   }
 
-  private toInstalledPluginResponse(plugin: Plugin & { versions: PluginVersion[] }) {
+  private async toInstalledPluginResponse(plugin: Plugin & { versions: PluginVersion[] }) {
+    const selected = plugin.versions[0];
+
     return {
       id: plugin.id,
       pluginId: plugin.manifestId,
@@ -56,28 +68,81 @@ export class PluginsService {
       description: plugin.description,
       authorName: plugin.authorName,
       configSchema: plugin.configSchema ?? null,
-      executionMode: plugin.versions[0]?.executionMode || 'local',
-      selectedVersion: plugin.versions[0]?.version ?? null,
+      thumbnailUrl: await this.resolveVersionFileUrl(plugin.slug, selected?.version, plugin.thumbnail),
+      icons: await this.resolveIcons(plugin.slug, selected?.version),
+      readmeUrl: await this.resolveVersionFileUrl(plugin.slug, selected?.version, 'README.md'),
+      executionMode: selected?.executionMode || 'local',
+      selectedVersion: selected?.version ?? null,
       installedVersions: plugin.versions.map(v => v.version),
-      status: plugin.versions[0]?.status ?? 'unknown',
+      status: selected?.status ?? 'unknown',
     };
   }
 
+  private versionAssetUrl(slug: string, version: string, filePath: string): string {
+    const segments = [slug, version, ...filePath.split('/')].map(segment => encodeURIComponent(segment));
+    return `/plugins/assets/${segments.join('/')}`;
+  }
+
+  private async resolveVersionFileUrl(
+    slug: string,
+    version: string | undefined,
+    filePath: string | null
+  ): Promise<string | null> {
+    if (!version || !filePath) {
+      return null;
+    }
+    const versionDir = this.pluginStorageService.getVersionPath(slug, version);
+    const resolved = path.resolve(versionDir, filePath);
+    if (!resolved.startsWith(versionDir)) {
+      return null;
+    }
+    const exists = await this.pluginStorageService.pathExists(resolved);
+    return exists ? this.versionAssetUrl(slug, version, filePath) : null;
+  }
+
+  private async resolveIcons(slug: string, version: string | undefined) {
+    if (!version) {
+      return [];
+    }
+    const icons = [];
+    for (const known of KNOWN_ICONS) {
+      const url = await this.resolveVersionFileUrl(slug, version, known.file);
+      if (url) {
+        icons.push({ src: url, sizes: known.sizes, type: known.type });
+      }
+    }
+    return icons;
+  }
+
   async uninstall(id: number) {
-    const plugin = await this.prisma.plugin.findUnique({ where: { id } });
+    const plugin = await this.prisma.plugin.findUnique({
+      where: { id },
+      include: { instances: { include: { screenSlots: { select: { id: true } } } } },
+    });
     if (!plugin) {
       throw new NotFoundException('Plugin not found');
     }
 
-    const count = await this.prisma.pluginInstance.count({ where: { pluginId: id } });
-    if (count > 0) {
-      throw new ConflictException(`Plugin is in use by ${count} plugin instance(s). Remove them first.`);
+    const assigned = plugin.instances.filter(instance => instance.screenSlots.length > 0);
+    if (assigned.length > 0) {
+      throw new ConflictException(
+        `Plugin is in use by ${assigned.length} plugin instance(s) on screens. Remove them from screens first.`
+      );
     }
 
-    await this.prisma.pluginVersion.deleteMany({ where: { pluginId: id } });
-    await this.prisma.plugin.delete({ where: { id } });
+    // Orphan instances (e.g. left behind by slot removal, which unassigns but never
+    // deletes the instance) are removed automatically; only live assignments block.
+    const orphanIds = plugin.instances.map(instance => instance.id);
 
-    return { message: 'Plugin uninstalled', pluginId: id };
+    await this.prisma.$transaction([
+      ...(orphanIds.length > 0 ? [this.prisma.pluginInstance.deleteMany({ where: { id: { in: orphanIds } } })] : []),
+      this.prisma.pluginVersion.deleteMany({ where: { pluginId: id } }),
+      this.prisma.plugin.delete({ where: { id } }),
+    ]);
+
+    await this.pluginStorageService.deletePluginDir(plugin.slug);
+
+    return { message: 'Plugin uninstalled', pluginId: id, deletedInstances: orphanIds.length };
   }
 
   async installFromRegistry(dto: InstallFromRegistryDTO) {

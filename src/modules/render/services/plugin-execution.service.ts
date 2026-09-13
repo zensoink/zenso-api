@@ -8,8 +8,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Liquid } from 'liquidjs';
 import { z } from 'zod';
 
-import { pluginManifestSchema } from '../../plugins/interfaces/plugin-manifest.schema';
+import { strictPluginManifestSchema } from '../../plugins/interfaces/plugin-manifest.strict';
 import { ContextAggregationService } from './context-aggregation.service';
+
+const LIQUID_RENDER_TIMEOUT_MS = 10_000;
 
 const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
@@ -106,16 +108,16 @@ export class PluginExecutionService {
       height: params.height,
     });
 
-    const parsedManifest = pluginManifestSchema.safeParse(manifestJson);
+    const parsedManifest = strictPluginManifestSchema.safeParse(manifestJson);
     const dataSources = parsedManifest.success ? (parsedManifest.data.data_sources ?? []) : [];
     const dataSourcesData = await this.dataSourcesService.resolveAll(
       dataSources,
       context.config,
-      context.zenso.user.timeZoneIana,
+      context.zenso.user.time_zone_iana,
       instance.id,
       params.dataCacheTtlMs
     );
-    Object.assign(context, dataSourcesData);
+    context.data = dataSourcesData;
 
     const liquid = new Liquid({ root: templateDir });
 
@@ -141,7 +143,22 @@ export class PluginExecutionService {
 
     liquid.registerFilter('json_safe', (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c'));
 
-    const html = String(await liquid.parseAndRender(template, context));
-    return { html };
+    // Backstop against hostile templates (e.g. unbounded {% for %} ranges):
+    // LiquidJS has no built-in render deadline.
+    let renderTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const rendered: unknown = await Promise.race([
+        liquid.parseAndRender(template, context),
+        new Promise<never>((_, reject) => {
+          renderTimer = setTimeout(() => reject(new Error('Liquid render timed out')), LIQUID_RENDER_TIMEOUT_MS);
+        }),
+      ]);
+      const html = String(rendered);
+      return { html };
+    } finally {
+      if (renderTimer !== undefined) {
+        clearTimeout(renderTimer);
+      }
+    }
   }
 }

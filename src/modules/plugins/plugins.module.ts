@@ -7,6 +7,7 @@ import {
   PluginsController,
   PluginsDebugController,
 } from './controllers';
+import { IsolateService } from './services/isolate.service';
 import { MockRegistryClient } from './services/mock-registry-client.service';
 import { PluginImportService } from './services/plugin-import.service';
 import { PluginStorageService } from './services/plugin-storage.service';
@@ -23,6 +24,7 @@ import { RegistryClient } from './services/registry-client.service';
     PluginImportService,
     PluginValidatorService,
     PluginZipService,
+    IsolateService,
     {
       provide: RegistryClient,
       useClass: process.env.MOCK_REGISTRY === 'true' ? MockRegistryClient : RegistryClient,

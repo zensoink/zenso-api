@@ -8,5 +8,4 @@ export * from './services/render-cache.service';
 export * from './services/render-orchestrator.service';
 export * from './services/screen-composer.service';
 export * from './services/screen-render.service';
-export * from './templates/plugin-iframe.template';
 export * from './types/slot-render-input';

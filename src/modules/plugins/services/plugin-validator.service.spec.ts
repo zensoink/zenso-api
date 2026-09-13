@@ -5,20 +5,31 @@ import * as path from 'node:path';
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { IsolateService } from './isolate.service';
 import { PluginValidatorService } from './plugin-validator.service';
 
 const MAX_JAVASCRIPT_BYTES = 2 * 1024 * 1024;
 
 function manifestWith(capabilities?: string[]): string {
-  return JSON.stringify({
+  return JSON.stringify(manifestObject(capabilities));
+}
+
+function manifestWithout(omit: string, capabilities?: string[]): string {
+  const full = manifestObject(capabilities);
+  delete full[omit];
+  return JSON.stringify(full);
+}
+
+function manifestObject(capabilities?: string[]): Record<string, unknown> {
+  return {
     id: 'zenso/test',
     version: '1.0.0',
     name: 'Test Plugin',
     schema_version: 1,
     core_min: '0.0.0',
-    config_schema: {},
+    config_schema: { type: 'object', properties: {} },
     ...(capabilities ? { capabilities } : {}),
-  });
+  };
 }
 
 describe('PluginValidatorService', () => {
@@ -27,7 +38,13 @@ describe('PluginValidatorService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PluginValidatorService],
+      providers: [
+        PluginValidatorService,
+        {
+          provide: IsolateService,
+          useValue: { screenBundle: jest.fn().mockReturnValue({ compiled: true, readyFlag: true }) },
+        },
+      ],
     }).compile();
 
     service = module.get<PluginValidatorService>(PluginValidatorService);
@@ -42,7 +59,9 @@ describe('PluginValidatorService', () => {
     await fs.writeFile(path.join(tempDir, 'manifest.json'), manifest);
     await fs.writeFile(path.join(tempDir, 'index.liquid'), '{{ hello }}');
     for (const [name, content] of Object.entries(files)) {
-      await fs.writeFile(path.join(tempDir, name), content);
+      const filePath = path.join(tempDir, name);
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, content);
     }
   }
 
@@ -74,5 +93,32 @@ describe('PluginValidatorService', () => {
     await writePlugin(manifestWith(['script']), { 'main.js': 'x'.repeat(MAX_JAVASCRIPT_BYTES + 1) });
 
     await expect(service.validateExtractedPlugin(tempDir)).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects a manifest without id (backend is the last gate for it)', async () => {
+    await writePlugin(manifestWithout('id', ['script']), {});
+
+    await expect(service.validateExtractedPlugin(tempDir)).rejects.toThrow();
+  });
+
+  it('rejects a manifest without version (canonical schema leaves it optional)', async () => {
+    await writePlugin(manifestWithout('version', ['script']), {});
+
+    await expect(service.validateExtractedPlugin(tempDir)).rejects.toThrow();
+  });
+
+  it('accepts a dist-shaped tree with assets, favicon, README and LICENSE', async () => {
+    await writePlugin(manifestWith(['script']), {
+      'assets/main.js': 'window.__ZENSO_READY__ = true;',
+      'assets/styles.css': 'body { margin: 0; }',
+      'assets/logo.png': 'fake-png',
+      'favicon.ico': 'fake-ico',
+      'README.md': '# Test Plugin',
+      LICENSE: 'MIT',
+    });
+
+    const { manifest } = await service.validateExtractedPlugin(tempDir);
+
+    expect(manifest.id).toBe('zenso/test');
   });
 });

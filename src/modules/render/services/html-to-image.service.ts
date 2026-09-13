@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { getWidgetTemplate } from '../templates/plugin-iframe.template';
 import { BrowserService } from './browser.service';
 
 @Injectable()
 export class HtmlToImageService {
   constructor(private readonly browserService: BrowserService) {}
-
   async render(params: {
     html: string;
     width: number;
@@ -15,12 +13,8 @@ export class HtmlToImageService {
     waitForReady?: boolean;
     timeZone?: string;
   }): Promise<Buffer> {
-    const fullHtml = getWidgetTemplate(params.html, {
-      width: params.width,
-      height: params.height,
-    });
-
-    return this.browserService.renderHtmlToPng(fullHtml, params.width, params.height, params.assetDir, {
+    // Template builds always emit a full document; it goes to Chromium as-is.
+    return this.browserService.renderHtmlToPng(params.html, params.width, params.height, params.assetDir, {
       waitForReady: params.waitForReady,
       timeZone: params.timeZone,
     });
