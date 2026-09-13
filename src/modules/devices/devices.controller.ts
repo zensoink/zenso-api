@@ -55,8 +55,9 @@ export class DevicesController {
   @ApiOperation({
     summary: 'Create device and generate secret',
     description:
-      'Creates a new device record associated with the authenticated user. ' +
-      'Generates a random hardware ID and secret. The secret is returned only once in the response ' +
+      'Creates a new device record associated with the authenticated user, using the caller-supplied ' +
+      'canonical hardware ID (12 uppercase hex chars, MAC without separators). ' +
+      'Generates a secret that is returned only once in the response ' +
       'and must be stored securely by the caller (e.g., flashed onto the device during manufacturing).',
   })
   @ApiBearerAuth('user-jwt')

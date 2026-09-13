@@ -1,13 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateDeviceDto {
   @ApiProperty({
-    description: 'Physical hardware identifier (MAC address without separators)',
-    example: 'E183B1F93393',
+    description: 'Canonical hardware identifier (12 uppercase hex chars, MAC without separators)',
+    example: 'E45F01234567',
   })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^[0-9A-F]{12}$/, {
+    message: 'hardware_id must be the canonical 12-char uppercase MAC without separators (e.g. E45F01234567)',
+  })
   hardware_id!: string;
 
   @ApiProperty({ description: 'Human-readable device name', example: 'Living Room Display' })
