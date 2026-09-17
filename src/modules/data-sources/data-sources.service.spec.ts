@@ -1,12 +1,13 @@
 import { DataSourcesService } from './data-sources.service';
 import { IcsSource } from './sources/ics.source';
+import { ImageSource } from './sources/image.source';
 
 describe('DataSourcesService', () => {
   let service: DataSourcesService;
   let mockHandler: { type: string; resolve: jest.Mock };
 
   beforeEach(() => {
-    service = new DataSourcesService(new IcsSource());
+    service = new DataSourcesService(new IcsSource(), new ImageSource());
     mockHandler = {
       type: 'mock',
       resolve: jest.fn().mockResolvedValue({ ok: true, events: [] }),

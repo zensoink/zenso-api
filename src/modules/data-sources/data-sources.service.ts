@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 
 import { IcsSource } from './sources/ics.source';
+import { ImageSource } from './sources/image.source';
 import { dateStringAt } from './timezone';
 
 export interface DataSourceContext {
@@ -38,8 +39,12 @@ export class DataSourcesService {
 
   nowFn: () => Date = () => new Date();
 
-  constructor(private readonly icsSource: IcsSource) {
+  constructor(
+    private readonly icsSource: IcsSource,
+    private readonly imageSource: ImageSource
+  ) {
     this.register(icsSource);
+    this.register(imageSource);
   }
 
   register(handler: DataSourceHandler): void {
