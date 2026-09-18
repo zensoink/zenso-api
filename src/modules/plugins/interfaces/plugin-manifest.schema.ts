@@ -7,11 +7,11 @@ export const pluginManifestSchema = z
       .string()
       .regex(new RegExp('^[a-z0-9]+/[a-z0-9-]+$'))
       .describe('Unique plugin identifier in owner/repo form, e.g. "zenso/zenso-plugin-calendar".'),
-    name: z.string().min(1).describe('Human-readable plugin name shown in the panel.'),
+    name: z.string().min(1).describe('Human-readable plugin name shown in the panel.').optional(),
     description: z.string().describe('Short description of what the plugin does.').optional(),
     thumbnail: z.string().describe('Relative path to a preview image bundled with the plugin.').optional(),
     schema_version: z.literal(1).describe('Must match the schema major version in the URL.'),
-    version: z.string().regex(new RegExp('^\\d+\\.\\d+\\.\\d+$')).describe('Plugin version (SemVer X.Y.Z).'),
+    version: z.string().regex(new RegExp('^\\d+\\.\\d+\\.\\d+$')).describe('Plugin version (SemVer X.Y.Z).').optional(),
     core_min: z.string().regex(new RegExp('^\\d+\\.\\d+\\.\\d+$')).describe('Minimum Zenso core version required.'),
     license: z.string().optional(),
     author: z.object({ name: z.string(), url: z.url().optional() }).strict().optional(),
@@ -100,11 +100,11 @@ export const pluginManifestSchema = z
         z
           .object({
             id: z.string().min(1),
-            type: z.string().min(1).describe('Data source handler. Currently supported: "ics".'),
+            type: z.string().min(1).describe('Data source handler. Currently supported: "ics", "image".'),
             config: z
               .record(z.string(), z.any())
               .describe(
-                'Source-specific options, e.g. references to configJson field names (urls_field, days_ahead_field).'
+                'Source-specific options, e.g. references to configJson field names (urls_field, days_ahead_field, url_field).'
               )
               .optional(),
           })

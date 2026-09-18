@@ -1,6 +1,6 @@
 import { lookup } from 'node:dns/promises';
 
-import { guardedFetch, isPrivateIp } from './guarded-fetch';
+import { guardedFetch, guardedFetchBinary, isLoopbackOrMetadataIp, isPrivateIp } from './guarded-fetch';
 
 jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(),
@@ -45,6 +45,38 @@ describe('isPrivateIp', () => {
     expect(isPrivateIp('::ffff:127.0.0.1')).toBe(true);
     expect(isPrivateIp('::ffff:192.168.1.1')).toBe(true);
     expect(isPrivateIp('::ffff:8.8.8.8')).toBe(false);
+  });
+});
+
+describe('isLoopbackOrMetadataIp', () => {
+  it('blocks loopback and cloud metadata ranges', () => {
+    expect(isLoopbackOrMetadataIp('0.0.0.0')).toBe(true);
+    expect(isLoopbackOrMetadataIp('127.0.0.1')).toBe(true);
+    expect(isLoopbackOrMetadataIp('127.255.255.255')).toBe(true);
+    expect(isLoopbackOrMetadataIp('169.254.169.254')).toBe(true);
+    expect(isLoopbackOrMetadataIp('169.254.1.1')).toBe(true);
+    expect(isLoopbackOrMetadataIp('::')).toBe(true);
+    expect(isLoopbackOrMetadataIp('::1')).toBe(true);
+    expect(isLoopbackOrMetadataIp('fe80::1')).toBe(true);
+    expect(isLoopbackOrMetadataIp('febf::1')).toBe(true);
+  });
+
+  it('allows private LAN and public addresses', () => {
+    expect(isLoopbackOrMetadataIp('10.0.0.1')).toBe(false);
+    expect(isLoopbackOrMetadataIp('192.168.1.1')).toBe(false);
+    expect(isLoopbackOrMetadataIp('172.16.0.1')).toBe(false);
+    expect(isLoopbackOrMetadataIp('172.31.255.255')).toBe(false);
+    expect(isLoopbackOrMetadataIp('fc00::1')).toBe(false);
+    expect(isLoopbackOrMetadataIp('fd12:3456::1')).toBe(false);
+    expect(isLoopbackOrMetadataIp('8.8.8.8')).toBe(false);
+    expect(isLoopbackOrMetadataIp('2606:4700::1111')).toBe(false);
+  });
+
+  it('handles IPv4-mapped IPv6 correctly', () => {
+    expect(isLoopbackOrMetadataIp('::ffff:127.0.0.1')).toBe(true);
+    expect(isLoopbackOrMetadataIp('::ffff:169.254.169.254')).toBe(true);
+    expect(isLoopbackOrMetadataIp('::ffff:192.168.1.1')).toBe(false);
+    expect(isLoopbackOrMetadataIp('::ffff:8.8.8.8')).toBe(false);
   });
 });
 
@@ -132,5 +164,44 @@ describe('guardedFetch', () => {
       .mockResolvedValue(new Response(null, { status: 200, headers: { 'content-length': String(6 * 1024 * 1024) } }));
 
     await expect(guardedFetch('https://public.example/feed.ics')).rejects.toThrow('5 MB limit');
+  });
+});
+
+describe('guardedFetchBinary', () => {
+  beforeEach(() => {
+    (lookup as jest.Mock).mockReset();
+    jest.restoreAllMocks();
+  });
+
+  it('allows private LAN HTTP address when allowPrivateLan is true', async () => {
+    const fakeBuffer = Buffer.from('image-bytes');
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(fakeBuffer, {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      })
+    );
+
+    const result = await guardedFetchBinary('http://192.168.1.50/pic.png', { allowPrivateLan: true });
+    expect(result.contentType).toBe('image/png');
+    expect(result.buffer).toEqual(fakeBuffer);
+  });
+
+  it('rejects metadata address even when allowPrivateLan is true', async () => {
+    await expect(
+      guardedFetchBinary('http://169.254.169.254/latest/meta-data', { allowPrivateLan: true })
+    ).rejects.toThrow('Blocked address: 169.254.169.254');
+  });
+
+  it('rejects LAN HTTP address when allowPrivateLan is false', async () => {
+    await expect(guardedFetchBinary('http://192.168.1.50/pic.png', { allowPrivateLan: false })).rejects.toThrow(
+      'Blocked protocol: http:'
+    );
+  });
+
+  it('rejects unsupported protocol even when allowPrivateLan is true', async () => {
+    await expect(guardedFetchBinary('ftp://192.168.1.50/pic.png', { allowPrivateLan: true })).rejects.toThrow(
+      'Blocked protocol: ftp:'
+    );
   });
 });
