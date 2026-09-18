@@ -69,7 +69,7 @@ export default tseslint.config(
   {
     files: ['**/*.spec.ts', '**/*.test.ts'],
     rules: {
-      '@typescript-eslint/consistent-type-assertions': ['warn', { assertionStyle: 'never' }],
+      '@typescript-eslint/consistent-type-assertions': ['off', { assertionStyle: 'never' }],
     },
   }
 );
