@@ -102,4 +102,25 @@ describe('ImageSource', () => {
       empty_reason: 'fetch_failed',
     });
   });
+
+  it('returns fetch_failed when content type is not an image', async () => {
+    const buffer = Buffer.from('<html lang=""><body>404 Not Found</body></html>');
+    jest.spyOn(guardedFetchModule, 'guardedFetchBinary').mockResolvedValue({
+      buffer,
+      contentType: 'text/html; charset=utf-8',
+    });
+
+    const result = await source.resolve({
+      configJson: { url: 'https://picsum.photos/800/480' },
+      manifestConfig: {},
+      timeZoneIana: 'UTC',
+      today: '2026-09-17',
+    });
+
+    expect(result).toMatchObject({
+      src: null,
+      url: 'https://picsum.photos/800/480',
+      empty_reason: 'fetch_failed',
+    });
+  });
 });

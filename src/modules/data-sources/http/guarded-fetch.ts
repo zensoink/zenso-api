@@ -43,6 +43,23 @@ export function isPrivateIp(ip: string): boolean {
   );
 }
 
+/**
+ * Checks whether an IP address belongs to loopback, link-local, or cloud metadata ranges.
+ *
+ * Unlike {@link isPrivateIp}, this function intentionally permits RFC 1918 private LAN ranges
+ * (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 and IPv6 ULA fc00::/7) so self-hosted instances
+ * and local devices (cameras, NAS, Home Assistant) can be reached.
+ *
+ * It strictly blocks SSRF attack vectors against:
+ * - **IPv4 / IPv6 Loopback** (`127.0.0.0/8`, `::1`): prevents probing host services (e.g. internal DBs/APIs).
+ * - **IPv4 / IPv6 Link-Local & Cloud Metadata** (`169.254.0.0/16`, `fe80::/10`): prevents querying
+ *   cloud instance metadata services (e.g., AWS/GCP/Azure IMDS at `169.254.169.254` which leaks IAM tokens).
+ * - **Unspecified / Current network** (`0.0.0.0/8`, `::`): prevents routing to current host listeners.
+ * - **IPv4-mapped IPv6** (`::ffff:x.x.x.x`): unwrapped and checked recursively.
+ *
+ * @param ip - An IPv4 or IPv6 address string (can be IPv4-mapped IPv6).
+ * @returns `true` if the IP is loopback, link-local, or metadata; otherwise `false`.
+ */
 export function isLoopbackOrMetadataIp(ip: string): boolean {
   const normalized = ip.toLowerCase();
 
@@ -57,10 +74,7 @@ export function isLoopbackOrMetadataIp(ip: string): boolean {
     if (a === 0 || a === 127) {
       return true;
     }
-    if (a === 169 && b === 254) {
-      return true;
-    }
-    return false;
+    return a === 169 && b === 254;
   }
 
   if (normalized === '::' || normalized === '::1') {
@@ -82,6 +96,19 @@ function isDevLocalUrl(url: URL): boolean {
   return url.protocol === 'http:' && url.hostname === '127.0.0.1' && process.env.NODE_ENV !== 'production';
 }
 
+function isAllowedDevLoopback(ip: string): boolean {
+  return process.env.NODE_ENV !== 'production' && (ip === '127.0.0.1' || ip === '::1');
+}
+
+function assertIpNotRestricted(ip: string, hostContext?: string): void {
+  if (isLoopbackOrMetadataIp(ip) && !isAllowedDevLoopback(ip)) {
+    const message = hostContext
+      ? `Blocked host "${hostContext}" resolves to restricted address ${ip}`
+      : `Blocked address: ${ip}`;
+    throw new Error(message);
+  }
+}
+
 async function assertPublicHost(url: URL): Promise<void> {
   const host = url.hostname.replace(/^\[|]$/g, '');
   if (isIpLiteral(host)) {
@@ -101,38 +128,29 @@ async function assertPublicHost(url: URL): Promise<void> {
 
 async function assertLanHostAllowed(url: URL): Promise<void> {
   const host = url.hostname.replace(/^\[|]$/g, '');
+
   if (isIpLiteral(host)) {
-    if (isLoopbackOrMetadataIp(host)) {
-      if (process.env.NODE_ENV !== 'production' && (host === '127.0.0.1' || host === '::1')) {
-        return;
-      }
-      throw new Error(`Blocked address: ${host}`);
-    }
+    assertIpNotRestricted(host);
     return;
   }
 
   const addresses = await lookup(host, { all: true });
   for (const { address } of addresses) {
-    if (isLoopbackOrMetadataIp(address)) {
-      if (process.env.NODE_ENV !== 'production' && (address === '127.0.0.1' || address === '::1')) {
-        continue;
-      }
-      throw new Error(`Blocked host "${host}" resolves to restricted address ${address}`);
-    }
+    assertIpNotRestricted(address, host);
   }
 }
 
 async function assertUrlAllowed(url: URL, isEntry: boolean, allowPrivateLan = false): Promise<void> {
-  if (url.protocol !== 'https:') {
-    if (isEntry && isDevLocalUrl(url)) {
-      return;
-    }
-    if (allowPrivateLan && url.protocol === 'http:') {
-      // Allowed protocol for LAN, host validation below enforces restrictions
-    } else {
-      throw new Error(`Blocked protocol: ${url.protocol}`);
-    }
+  const isAllowedHttp = (isEntry && isDevLocalUrl(url)) || (allowPrivateLan && url.protocol === 'http:');
+
+  if (url.protocol !== 'https:' && !isAllowedHttp) {
+    throw new Error(`Blocked protocol: ${url.protocol}`);
   }
+
+  if (isEntry && isDevLocalUrl(url)) {
+    return;
+  }
+
   if (allowPrivateLan) {
     await assertLanHostAllowed(url);
   } else {

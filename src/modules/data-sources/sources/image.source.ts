@@ -43,6 +43,16 @@ export class ImageSource implements DataSourceHandler {
       });
 
       const mime = contentType.split(';')[0].trim().toLowerCase() || 'image/jpeg';
+      if (!mime.startsWith('image/')) {
+        this.logger.warn(`Resource from "${url}" returned non-image content type: "${contentType}"`);
+        return {
+          src: null,
+          url,
+          empty_reason: 'fetch_failed',
+          fetched_at: now.toISOString(),
+        };
+      }
+
       const base64 = buffer.toString('base64');
 
       return {
