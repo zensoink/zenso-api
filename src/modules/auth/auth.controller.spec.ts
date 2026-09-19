@@ -18,6 +18,10 @@ function asAccessTokenResponse(body: unknown): { accessToken: string } {
   return body as { accessToken: string };
 }
 
+function asOAuthTokenResponse(body: unknown): { access_token: string; token_type: string; expires_in: number } {
+  return body as { access_token: string; token_type: string; expires_in: number };
+}
+
 function asMessageResponse(body: unknown): { message: unknown } {
   return body as { message: unknown };
 }
@@ -100,6 +104,77 @@ describe('AuthController', () => {
       const res = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ email: 'test@example.com' })
+        .expect(400);
+
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
+    });
+  });
+
+  describe('POST /auth/oauth/token', () => {
+    it('should return 200 with access_token, token_type, and expires_in when credentials are valid (JSON)', async () => {
+      mockAuthService.login.mockResolvedValue({ accessToken: 'mock-oauth-token', refreshToken: 'mock-refresh-token' });
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/oauth/token')
+        .send({ username: 'test@example.com', password: 'password123', grant_type: 'password' })
+        .expect(200);
+
+      const body = asOAuthTokenResponse(res.body);
+      expect(body).toEqual({
+        access_token: 'mock-oauth-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+      });
+      expect(mockAuthService.login).toHaveBeenCalledWith('test@example.com', 'password123');
+    });
+
+    it('should return 200 when credentials are sent as application/x-www-form-urlencoded', async () => {
+      mockAuthService.login.mockResolvedValue({
+        accessToken: 'mock-oauth-form-token',
+        refreshToken: 'mock-refresh-token',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/oauth/token')
+        .type('form')
+        .send({ username: 'test@example.com', password: 'password123', grant_type: 'password' })
+        .expect(200);
+
+      const body = asOAuthTokenResponse(res.body);
+      expect(body).toEqual({
+        access_token: 'mock-oauth-form-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+      });
+    });
+
+    it('should return 401 when credentials are invalid', async () => {
+      mockAuthService.login.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/oauth/token')
+        .send({ username: 'test@example.com', password: 'wrong-password' })
+        .expect(401);
+
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
+    });
+
+    it('should return 400 when username is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/oauth/token')
+        .send({ password: 'password123' })
+        .expect(400);
+
+      const body = asMessageResponse(res.body);
+      expect(body.message).toBeDefined();
+    });
+
+    it('should return 400 when password is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/oauth/token')
+        .send({ username: 'test@example.com' })
         .expect(400);
 
       const body = asMessageResponse(res.body);

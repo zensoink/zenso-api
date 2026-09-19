@@ -9,11 +9,13 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { AuthService } from './auth.service';
 import { DeviceLoginDto } from './dto/device-login.dto';
+import { OAuthTokenDto } from './dto/oauth-token.dto';
+import { OAuthTokenResponseDto } from './dto/oauth-token-response.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { UserJwtAuthGuard } from './guards/user-jwt-auth.guard';
@@ -51,6 +53,35 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
 
     return { accessToken };
+  }
+
+  @Post('oauth/token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'OAuth2 password grant token endpoint',
+    description:
+      'Authenticates a user using OAuth2 password grant credentials (email in username, and password). ' +
+      'Swagger UI uses this endpoint to authorize API requests directly without manual token copying. ' +
+      'Returns an RFC 6749 compliant bearer access token and sets the httpOnly refresh cookie.',
+  })
+  @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
+  @ApiBody({ type: OAuthTokenDto })
+  @ApiResponse({ status: 200, description: 'OAuth2 access token issued successfully', type: OAuthTokenResponseDto })
+  @ApiResponse({ status: 400, description: 'Missing required credentials' })
+  @ApiResponse({ status: 401, description: 'Invalid email or password' })
+  async oauthToken(
+    @Body() dto: OAuthTokenDto,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<OAuthTokenResponseDto> {
+    const { accessToken, refreshToken } = await this.authService.login(dto.username, dto.password);
+
+    res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return {
+      access_token: accessToken,
+      token_type: 'bearer',
+      expires_in: 3600,
+    };
   }
 
   @Post('refresh')

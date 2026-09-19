@@ -50,7 +50,21 @@ async function bootstrap() {
         'See individual endpoint descriptions for details.'
     )
     .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'user-jwt')
+    .addOAuth2(
+      {
+        type: 'oauth2',
+        description:
+          'Authorize API requests directly using your Zenso user account credentials (email in "username", and password). ' +
+          'Swagger UI automatically fetches a bearer token and injects it into all user-facing requests.',
+        flows: {
+          password: {
+            tokenUrl: '/auth/oauth/token',
+            scopes: {},
+          },
+        },
+      },
+      'user-jwt'
+    )
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'device-jwt')
     .build();
 
@@ -68,7 +82,12 @@ async function bootstrap() {
     ];
     return document;
   };
-  SwaggerModule.setup('api', app, documentFactory);
+
+  SwaggerModule.setup('api', app, documentFactory, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port, '0.0.0.0');
