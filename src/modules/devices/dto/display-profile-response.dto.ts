@@ -1,3 +1,5 @@
+import type { ValidDisplayProfileId, ValidPresetId } from '@modules/render';
+import { VALID_DISPLAY_PROFILE_IDS, VALID_PRESET_IDS } from '@modules/render';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class DisplayProfilePigmentDto {
@@ -15,8 +17,8 @@ export class DisplayProfilePigmentDto {
 }
 
 export class DisplayProfilePresetDto {
-  @ApiProperty({ description: 'Preset identifier', example: '3color' })
-  id!: string;
+  @ApiProperty({ description: 'Preset identifier', enum: VALID_PRESET_IDS, example: '3color' })
+  id!: ValidPresetId;
 
   @ApiProperty({ description: 'Human-readable preset title', example: '3-color Contrast' })
   name!: string;
@@ -35,8 +37,12 @@ export class DisplayProfilePresetDto {
 }
 
 export class DisplayProfileResponseDto {
-  @ApiProperty({ description: 'Unique display profile identifier', example: 'spectra6_7in3' })
-  id!: string;
+  @ApiProperty({
+    description: 'Unique display profile identifier',
+    enum: VALID_DISPLAY_PROFILE_IDS,
+    example: 'spectra6_7in3',
+  })
+  id!: ValidDisplayProfileId;
 
   @ApiProperty({
     description: 'Human-readable display panel name and resolution',

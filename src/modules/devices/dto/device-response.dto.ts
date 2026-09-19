@@ -1,3 +1,4 @@
+import { VALID_DISPLAY_PROFILE_IDS, VALID_PRESET_IDS } from '@modules/render';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DeviceClaimStatus, DeviceStatus } from '@prisma/client';
 
@@ -26,7 +27,11 @@ export class DeviceResponseDto {
   })
   palette!: string[];
 
-  @ApiProperty({ description: 'Display profile identifier', example: 'spectra6_7in3' })
+  @ApiProperty({
+    description: 'Display profile identifier',
+    enum: VALID_DISPLAY_PROFILE_IDS,
+    example: 'spectra6_7in3',
+  })
   displayProfile!: string;
 
   @ApiPropertyOptional({
@@ -44,7 +49,7 @@ export class DeviceResponseDto {
 
   @ApiProperty({
     description: 'Active palette preset name',
-    enum: ['full', '3color', 'mono', 'custom'],
+    enum: VALID_PRESET_IDS,
     example: 'full',
   })
   palettePreset!: string;

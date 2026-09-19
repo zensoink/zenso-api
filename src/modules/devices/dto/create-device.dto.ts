@@ -1,6 +1,9 @@
+import { VALID_DISPLAY_PROFILE_IDS, VALID_PRESET_IDS } from '@modules/render';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsIn,
   IsInt,
@@ -45,7 +48,7 @@ export class CreateDeviceDto {
   height?: number;
 
   @ApiPropertyOptional({
-    description: 'Color palette as hex strings',
+    description: 'Color palette as hex strings (minimum 2 colors, maximum 7 colors)',
     example: ['#000000', '#FFFFFF', '#00FF00', '#0000FF', '#FF0000', '#FFFF00'],
   })
   @IsOptional()
@@ -53,11 +56,18 @@ export class CreateDeviceDto {
   @IsString({ each: true })
   @Matches(/^#[0-9A-Fa-f]{6}$/, { each: true, message: 'Each palette item must be a valid 6-char hex color' })
   @ArrayMinSize(2)
+  @ArrayMaxSize(7)
+  @ArrayUnique({ message: 'Palette colors must be unique' })
   palette?: string[];
 
-  @ApiPropertyOptional({ description: 'Display profile identifier', example: 'spectra6_7in3' })
+  @ApiPropertyOptional({
+    description: 'Display profile identifier',
+    enum: VALID_DISPLAY_PROFILE_IDS,
+    example: 'spectra6_7in3',
+  })
   @IsOptional()
   @IsString()
+  @IsIn(VALID_DISPLAY_PROFILE_IDS)
   displayProfile?: string;
 
   @ApiPropertyOptional({
@@ -82,10 +92,10 @@ export class CreateDeviceDto {
 
   @ApiPropertyOptional({
     description: 'Palette preset mode',
-    enum: ['full', '3color', 'mono', 'custom'],
+    enum: VALID_PRESET_IDS,
     example: 'full',
   })
   @IsOptional()
-  @IsIn(['full', '3color', 'mono', 'custom'])
+  @IsIn(VALID_PRESET_IDS)
   palettePreset?: string;
 }

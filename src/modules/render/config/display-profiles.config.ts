@@ -1,3 +1,18 @@
+export const VALID_DISPLAY_PROFILE_IDS = [
+  'spectra6_7in3',
+  'acep_7in3',
+  'acep_5in65',
+  'bwr_4in2',
+  'mono_800x480',
+  'custom',
+] as const;
+
+export type ValidDisplayProfileId = (typeof VALID_DISPLAY_PROFILE_IDS)[number];
+
+export const VALID_PRESET_IDS = ['full', '3color', 'mono', 'custom'] as const;
+
+export type ValidPresetId = (typeof VALID_PRESET_IDS)[number];
+
 export interface DisplayPigment {
   name: string;
   hex: string;
@@ -6,14 +21,14 @@ export interface DisplayPigment {
 }
 
 export interface DisplayPreset {
-  id: string;
+  id: ValidPresetId;
   name: string;
   description: string;
   palette: string[];
 }
 
 export interface DisplayProfile {
-  id: string;
+  id: ValidDisplayProfileId;
   name: string;
   defaultWidth: number;
   defaultHeight: number;
@@ -26,22 +41,62 @@ export interface DisplayProfile {
   nibbleHeaderString: string;
 }
 
+export const DEFAULT_EPD_CONFIG: Record<string, unknown> = {
+  processingPreset: 'vivid',
+  colorMatching: 'lab',
+  ditheringType: 'errorDiffusion',
+  errorDiffusionMatrix: 'floydSteinberg',
+  serpentine: true,
+};
+
+export function buildHardwareNibbleMap(pigments: readonly DisplayPigment[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const pigment of pigments) {
+    map[pigment.name] = pigment.nibble;
+  }
+  return map;
+}
+
+export function buildNibbleHeaderString(pigments: readonly DisplayPigment[]): string {
+  return pigments.map(p => `${p.nibble}:${p.name}`).join(', ');
+}
+
+interface ProfileDefinition {
+  id: ValidDisplayProfileId;
+  name: string;
+  defaultWidth: number;
+  defaultHeight: number;
+  isCustom?: boolean;
+  bpp?: number;
+  physicalPigments: DisplayPigment[];
+  presets: DisplayPreset[];
+  defaultEpdConfig?: Record<string, unknown>;
+  hardwareNibbleMap?: Record<string, number>;
+  nibbleHeaderString?: string;
+}
+
+function createProfile(def: ProfileDefinition): DisplayProfile {
+  return {
+    id: def.id,
+    name: def.name,
+    defaultWidth: def.defaultWidth,
+    defaultHeight: def.defaultHeight,
+    isCustom: def.isCustom ?? false,
+    bpp: def.bpp ?? 4,
+    hardwareNibbleMap: def.hardwareNibbleMap ?? buildHardwareNibbleMap(def.physicalPigments),
+    physicalPigments: def.physicalPigments,
+    presets: def.presets,
+    defaultEpdConfig: def.defaultEpdConfig ?? DEFAULT_EPD_CONFIG,
+    nibbleHeaderString: def.nibbleHeaderString ?? buildNibbleHeaderString(def.physicalPigments),
+  };
+}
+
 export const DISPLAY_PROFILES: DisplayProfile[] = [
-  {
+  createProfile({
     id: 'spectra6_7in3',
     name: 'Seeed 7.3" Spectra™ 6 (800 × 480, 6 Colors)',
     defaultWidth: 800,
     defaultHeight: 480,
-    isCustom: false,
-    bpp: 4,
-    hardwareNibbleMap: {
-      black: 0,
-      white: 1,
-      green: 2,
-      blue: 3,
-      red: 4,
-      yellow: 5,
-    },
     physicalPigments: [
       { name: 'black', hex: '#000000', calibratedHex: '#020202', nibble: 0 },
       { name: 'white', hex: '#FFFFFF', calibratedHex: '#BEC8C8', nibble: 1 },
@@ -70,31 +125,12 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
         palette: ['#000000', '#FFFFFF'],
       },
     ],
-    defaultEpdConfig: {
-      processingPreset: 'vivid',
-      colorMatching: 'lab',
-      ditheringType: 'errorDiffusion',
-      errorDiffusionMatrix: 'floydSteinberg',
-      serpentine: true,
-    },
-    nibbleHeaderString: '0:black, 1:white, 2:green, 3:blue, 4:red, 5:yellow',
-  },
-  {
+  }),
+  createProfile({
     id: 'acep_7in3',
     name: '7.3" ACeP 7-Color (800 × 480, 7 Colors)',
     defaultWidth: 800,
     defaultHeight: 480,
-    isCustom: false,
-    bpp: 4,
-    hardwareNibbleMap: {
-      black: 0,
-      white: 1,
-      green: 2,
-      blue: 3,
-      red: 4,
-      yellow: 5,
-      orange: 6,
-    },
     physicalPigments: [
       { name: 'black', hex: '#000000', calibratedHex: '#191E21', nibble: 0 },
       { name: 'white', hex: '#FFFFFF', calibratedHex: '#F1F1F1', nibble: 1 },
@@ -124,31 +160,12 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
         palette: ['#000000', '#FFFFFF'],
       },
     ],
-    defaultEpdConfig: {
-      processingPreset: 'vivid',
-      colorMatching: 'lab',
-      ditheringType: 'errorDiffusion',
-      errorDiffusionMatrix: 'floydSteinberg',
-      serpentine: true,
-    },
-    nibbleHeaderString: '0:black, 1:white, 2:green, 3:blue, 4:red, 5:yellow, 6:orange',
-  },
-  {
+  }),
+  createProfile({
     id: 'acep_5in65',
     name: '5.65" ACeP 7-Color (600 × 448, 7 Colors)',
     defaultWidth: 600,
     defaultHeight: 448,
-    isCustom: false,
-    bpp: 4,
-    hardwareNibbleMap: {
-      black: 0,
-      white: 1,
-      green: 2,
-      blue: 3,
-      red: 4,
-      yellow: 5,
-      orange: 6,
-    },
     physicalPigments: [
       { name: 'black', hex: '#000000', calibratedHex: '#191E21', nibble: 0 },
       { name: 'white', hex: '#FFFFFF', calibratedHex: '#F1F1F1', nibble: 1 },
@@ -178,27 +195,12 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
         palette: ['#000000', '#FFFFFF'],
       },
     ],
-    defaultEpdConfig: {
-      processingPreset: 'vivid',
-      colorMatching: 'lab',
-      ditheringType: 'errorDiffusion',
-      errorDiffusionMatrix: 'floydSteinberg',
-      serpentine: true,
-    },
-    nibbleHeaderString: '0:black, 1:white, 2:green, 3:blue, 4:red, 5:yellow, 6:orange',
-  },
-  {
+  }),
+  createProfile({
     id: 'bwr_4in2',
     name: '4.2" 3-Color BWR (400 × 300, 3 Colors)',
     defaultWidth: 400,
     defaultHeight: 300,
-    isCustom: false,
-    bpp: 4,
-    hardwareNibbleMap: {
-      black: 0,
-      white: 1,
-      red: 4,
-    },
     physicalPigments: [
       { name: 'black', hex: '#000000', calibratedHex: '#000000', nibble: 0 },
       { name: 'white', hex: '#FFFFFF', calibratedHex: '#FFFFFF', nibble: 1 },
@@ -218,26 +220,12 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
         palette: ['#000000', '#FFFFFF'],
       },
     ],
-    defaultEpdConfig: {
-      processingPreset: 'vivid',
-      colorMatching: 'lab',
-      ditheringType: 'errorDiffusion',
-      errorDiffusionMatrix: 'floydSteinberg',
-      serpentine: true,
-    },
-    nibbleHeaderString: '0:black, 1:white, 4:red',
-  },
-  {
+  }),
+  createProfile({
     id: 'mono_800x480',
     name: 'Monochrome E-Ink (800 × 480, 2 Colors)',
     defaultWidth: 800,
     defaultHeight: 480,
-    isCustom: false,
-    bpp: 4,
-    hardwareNibbleMap: {
-      black: 0,
-      white: 1,
-    },
     physicalPigments: [
       { name: 'black', hex: '#000000', calibratedHex: '#000000', nibble: 0 },
       { name: 'white', hex: '#FFFFFF', calibratedHex: '#FFFFFF', nibble: 1 },
@@ -250,30 +238,13 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
         palette: ['#000000', '#FFFFFF'],
       },
     ],
-    defaultEpdConfig: {
-      processingPreset: 'vivid',
-      colorMatching: 'lab',
-      ditheringType: 'errorDiffusion',
-      errorDiffusionMatrix: 'floydSteinberg',
-      serpentine: true,
-    },
-    nibbleHeaderString: '0:black, 1:white',
-  },
-  {
+  }),
+  createProfile({
     id: 'custom',
     name: 'Custom Resolution Display',
     defaultWidth: 800,
     defaultHeight: 480,
     isCustom: true,
-    bpp: 4,
-    hardwareNibbleMap: {
-      black: 0,
-      white: 1,
-      green: 2,
-      blue: 3,
-      red: 4,
-      yellow: 5,
-    },
     physicalPigments: [
       { name: 'black', hex: '#000000', calibratedHex: '#000000', nibble: 0 },
       { name: 'white', hex: '#FFFFFF', calibratedHex: '#FFFFFF', nibble: 1 },
@@ -281,13 +252,14 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
       { name: 'blue', hex: '#0000FF', calibratedHex: '#0000FF', nibble: 3 },
       { name: 'red', hex: '#FF0000', calibratedHex: '#FF0000', nibble: 4 },
       { name: 'yellow', hex: '#FFFF00', calibratedHex: '#FFFF00', nibble: 5 },
+      { name: 'orange', hex: '#FFA500', calibratedHex: '#FFA500', nibble: 6 },
     ],
     presets: [
       {
         id: 'full',
-        name: '6-color Spectrum',
-        description: 'Full 6-color palette for custom panels',
-        palette: ['#000000', '#FFFFFF', '#00FF00', '#0000FF', '#FF0000', '#FFFF00'],
+        name: '7-color Spectrum',
+        description: 'Full 7-color palette for custom panels',
+        palette: ['#000000', '#FFFFFF', '#00FF00', '#0000FF', '#FF0000', '#FFFF00', '#FFA500'],
       },
       {
         id: '3color',
@@ -304,29 +276,25 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
       {
         id: 'custom',
         name: 'Custom Palette',
-        description: 'User-specified color palette',
+        description: 'User-specified color palette (up to 7 colors)',
         palette: ['#000000', '#FFFFFF', '#FF0000'],
       },
     ],
-    defaultEpdConfig: {
-      processingPreset: 'vivid',
-      colorMatching: 'lab',
-      ditheringType: 'errorDiffusion',
-      errorDiffusionMatrix: 'floydSteinberg',
-      serpentine: true,
-    },
-    nibbleHeaderString: '0:black, 1:white, 2:green, 3:blue, 4:red, 5:yellow',
-  },
+  }),
 ];
+
+const PROFILE_MAP = new Map<string, DisplayProfile>(DISPLAY_PROFILES.map(profile => [profile.id, profile]));
 
 export function getAllDisplayProfiles(): DisplayProfile[] {
   return DISPLAY_PROFILES;
 }
 
 export function getDisplayProfile(profileId?: string | null): DisplayProfile {
-  if (!profileId) {
-    return DISPLAY_PROFILES[0];
+  if (profileId) {
+    const found = PROFILE_MAP.get(profileId);
+    if (found) {
+      return found;
+    }
   }
-  const found = DISPLAY_PROFILES.find(profile => profile.id === profileId);
-  return found ?? DISPLAY_PROFILES[0];
+  return DISPLAY_PROFILES[0];
 }
