@@ -23,10 +23,19 @@ export class DeviceStatusResponseDto {
   @ApiProperty({ description: 'Screen render height in pixels', example: 480 })
   height!: number;
 
-  @ApiProperty({ description: 'Active color palette', example: ['#000000', '#FFFFFF'] })
+  @ApiProperty({
+    description: 'Active color palette hex strings',
+    example: ['#000000', '#FFFFFF', '#00FF00', '#0000FF', '#FF0000', '#FFFF00'],
+  })
   palette!: string[];
 
-  @ApiProperty({ description: 'Current render mode', example: 'black-white' })
+  @ApiProperty({ description: 'Display profile identifier', example: 'spectra6_7in3' })
+  displayProfile!: string;
+
+  @ApiProperty({ description: 'Display orientation in degrees', enum: [0, 90, 180, 270], example: 0 })
+  rotation!: number;
+
+  @ApiProperty({ description: 'Current render mode', example: 'ui' })
   renderMode!: string;
 
   @ApiProperty({ description: 'Whether a rendered image exists', example: true })

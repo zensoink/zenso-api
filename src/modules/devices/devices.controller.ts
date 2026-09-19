@@ -1,6 +1,6 @@
 import { PrismaService } from '@core/prisma';
 import { DeviceJwtAuthGuard, UserJwtAuthGuard } from '@modules/auth';
-import { RenderOrchestratorService } from '@modules/render';
+import { getAllDisplayProfiles, getDisplayProfile, RenderOrchestratorService } from '@modules/render';
 import {
   BadRequestException,
   Body,
@@ -14,6 +14,7 @@ import {
   NotFoundException,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -22,6 +23,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiHeader,
   ApiOkResponse,
@@ -37,7 +39,10 @@ import { CreateDeviceResponseDto } from './dto/create-device-response.dto';
 import { DeviceCheckInDto } from './dto/device-check-in.dto';
 import { DeviceResponseDto } from './dto/device-response.dto';
 import { DeviceStatusResponseDto } from './dto/device-status-response.dto';
+import { DisplayProfileResponseDto } from './dto/display-profile-response.dto';
+import { ForceRefreshResponseDto } from './dto/force-refresh-response.dto';
 import { RotateDeviceSecretResponseDto } from './dto/rotate-device-secret-response.dto';
+import { UpdateDeviceDto } from './dto/update-device.dto';
 
 @ApiTags('devices')
 @Controller('devices')
@@ -61,7 +66,9 @@ export class DevicesController {
       'and must be stored securely by the caller (e.g., flashed onto the device during manufacturing).',
   })
   @ApiBearerAuth('user-jwt')
+  @ApiBody({ type: CreateDeviceDto })
   @ApiCreatedResponse({ type: CreateDeviceResponseDto, description: 'Device created, rawSecret shown once' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async create(@Body() dto: CreateDeviceDto, @Req() req: { user: { userId: number } }) {
     return this.devicesService.createDevice(req.user.userId, dto);
@@ -80,6 +87,25 @@ export class DevicesController {
     return this.devicesService.findAll(req.user.userId);
   }
 
+  @Get('display-profiles')
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Get display profiles catalog',
+    description:
+      'Returns all supported physical display models and their hardware specifications, ' +
+      'nibble mappings, calibrated pigments, and allowed color palette presets.',
+  })
+  @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({
+    type: DisplayProfileResponseDto,
+    isArray: true,
+    description: 'List of supported display profiles',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getDisplayProfiles() {
+    return getAllDisplayProfiles();
+  }
+
   @Get('display')
   @UseGuards(DeviceJwtAuthGuard)
   @ApiOperation({
@@ -92,6 +118,9 @@ export class DevicesController {
   @ApiBearerAuth('device-jwt')
   @ApiResponse({ status: 200, description: 'Raw EPD image or PNG preview' })
   @ApiResponse({ status: 304, description: 'Not modified (ETag match)' })
+  @ApiResponse({ status: 400, description: 'Invalid format query parameter' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Device or active screen not found' })
   @ApiHeader({ name: 'if-none-match', required: false, description: 'ETag from previous response' })
   async getDisplay(
     @Req() req: { user: { deviceId: number } },
@@ -131,7 +160,14 @@ export class DevicesController {
 
     const etag = contentKey ? '"' + contentKey.slice(0, 32) + '"' : null;
 
+    const profile = getDisplayProfile(device.displayProfile);
     res.set('Cache-Control', 'no-cache');
+    res.set('X-Display-Profile', device.displayProfile ?? 'spectra6_7in3');
+    res.set('X-Display-Width', (device.width ?? 800).toString());
+    res.set('X-Display-Height', (device.height ?? 480).toString());
+    res.set('X-Display-Bpp', '4');
+    res.set('X-Display-Rotation', (device.rotation ?? 0).toString());
+    res.set('X-Display-Nibbles', profile.nibbleHeaderString);
 
     if (etag) {
       res.set('ETag', etag);
@@ -171,21 +207,65 @@ export class DevicesController {
     return this.devicesService.findById(id, req.user.userId);
   }
 
+  @Patch(':id')
+  @UseGuards(UserJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Update device settings',
+    description:
+      'Updates hardware and display configuration for a device owned by the authenticated user. ' +
+      'Invalidates screen render cache if display parameters change.',
+  })
+  @ApiBearerAuth('user-jwt')
+  @ApiBody({ type: UpdateDeviceDto })
+  @ApiOkResponse({ type: DeviceResponseDto, description: 'Updated device details' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDeviceDto,
+    @Req() req: { user: { userId: number } }
+  ) {
+    return this.devicesService.update(id, req.user.userId, dto);
+  }
+
   @Delete(':id')
   @UseGuards(UserJwtAuthGuard)
   @ApiOperation({
-    summary: 'Revoke device (soft delete)',
+    summary: 'Revoke or delete device',
     description:
-      'Soft-deletes a device by setting revokedAt. The device will be unable to check in or fetch ' +
-      'display images. This action is reversible by an admin (no dedicated restore endpoint yet).',
+      'Soft-deletes (revokes) a device by default or permanently removes it when hard=true ' +
+      'query parameter is passed. Unlinks any assigned screens and invalidates render cache.',
   })
   @ApiBearerAuth('user-jwt')
   @HttpCode(HttpStatus.OK)
-  @ApiResponse({ status: 200, description: 'Device revoked' })
+  @ApiResponse({ status: 200, description: 'Device revoked or deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Device not found' })
-  revoke(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
-    return this.devicesService.revoke(id, req.user.userId);
+  revoke(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: { user: { userId: number } },
+    @Query('hard') hardParam?: string
+  ) {
+    const hard = hardParam === 'true';
+    return this.devicesService.revoke(id, req.user.userId, hard);
+  }
+
+  @Post(':id/force-refresh')
+  @UseGuards(UserJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Force refresh device display',
+    description:
+      'Purges server render cache and clears content hash for all screens assigned to this device, ' +
+      'causing the device to fetch a fresh render on its next check-in.',
+  })
+  @ApiBearerAuth('user-jwt')
+  @ApiOkResponse({ type: ForceRefreshResponseDto, description: 'Force refresh triggered successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  forceRefresh(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
+    return this.devicesService.forceRefresh(id, req.user.userId);
   }
 
   @Post('check-in')
@@ -198,11 +278,13 @@ export class DevicesController {
       'and whether the display image has changed (contentChanged flag).',
   })
   @ApiBearerAuth('device-jwt')
+  @ApiBody({ type: DeviceCheckInDto })
   @ApiResponse({
     status: 200,
     type: DeviceStatusResponseDto,
     description: 'Check-in accepted, returns config and next refresh interval',
   })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async checkIn(
     @Req() req: { user: { deviceId: number } },
@@ -223,6 +305,7 @@ export class DevicesController {
   @ApiBearerAuth('user-jwt')
   @ApiOkResponse({ type: RotateDeviceSecretResponseDto, description: 'Device secret rotated' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
   async rotateSecret(@Param('id', ParseIntPipe) id: number, @Req() req: { user: { userId: number } }) {
     return this.devicesService.rotateSecret(id, req.user.userId);
   }

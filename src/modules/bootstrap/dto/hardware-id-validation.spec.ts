@@ -14,7 +14,6 @@ describe('hardware_id contract', () => {
   const colonForm = 'e4:5f:01:23:45:67';
 
   function makeDto(Ctor: new () => object, hardware_id: string): object {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const dto = new Ctor() as Record<string, unknown>;
     dto.hardware_id = hardware_id;
     if ('name' in dto) {

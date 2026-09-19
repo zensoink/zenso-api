@@ -85,6 +85,20 @@ describe('RenderCacheService', () => {
     });
   });
 
+  describe('invalidateScreen', () => {
+    it('removes only entries belonging to the specified screenId', () => {
+      const key1 = 'key-screen-1';
+      const key2 = 'key-screen-2';
+      service.set(key1, Buffer.from('screen1-data'), 60_000, 1);
+      service.set(key2, Buffer.from('screen2-data'), 60_000, 2);
+
+      service.invalidateScreen(1);
+
+      expect(service.get(key1)).toBeNull();
+      expect(service.get(key2)).toEqual(Buffer.from('screen2-data'));
+    });
+  });
+
   describe('clear', () => {
     it('removes all entries', () => {
       const key = service.generateKey(1, 800, 480, baseSlots);

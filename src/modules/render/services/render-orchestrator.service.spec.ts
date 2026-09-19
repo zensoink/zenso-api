@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { PrismaService } from '@core/prisma';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { EpdImageService } from './epd-image.service';
@@ -48,7 +48,16 @@ describe('RenderOrchestratorService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     contentHash: null,
-    device: { id: 1 },
+    device: {
+      id: 1,
+      width: 800,
+      height: 480,
+      palette: ['#000000', '#ffffff'],
+      rotation: 0,
+      displayProfile: 'spectra6_7in3',
+      refreshRate: 300,
+      epdConfig: null,
+    },
     slots: [
       {
         id: 1,
@@ -102,7 +111,7 @@ describe('RenderOrchestratorService', () => {
 
     mockEpdImageService = {
       renderPreview: jest.fn().mockResolvedValue(mockPreviewBuffer),
-      renderForDevice: jest.fn().mockResolvedValue(mockPreviewBuffer),
+      renderForDevice: jest.fn().mockResolvedValue(Buffer.from('device-raw')),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -121,15 +130,33 @@ describe('RenderOrchestratorService', () => {
 
   describe('renderPreview', () => {
     it('returns { buffer, contentKey } where contentKey is the PNG hash', async () => {
-      mockPrismaService.screen.findUnique.mockResolvedValueOnce(mockScreen).mockResolvedValueOnce(mockScreen);
+      mockPrismaService.screen.findUnique.mockResolvedValue(mockScreen);
       mockScreenRenderService.renderSlots.mockResolvedValue([
         { x: 0, y: 0, w: 800, h: 480, zIndex: 0, pngBuffer: Buffer.from('slot-png') },
       ]);
 
       const result = await service.renderPreview(1);
 
-      expect(result).toHaveProperty('buffer');
-      expect(result).toHaveProperty('contentKey');
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(mockScreenComposerService.compose).toHaveBeenCalledWith({
+        width: 800,
+        height: 480,
+        slots: expect.any(Array),
+      });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+
+      expect(mockEpdImageService.renderPreview).toHaveBeenCalledWith({
+        input: mockComposedPng,
+        width: 800,
+        height: 480,
+        palette: ['#000000', '#ffffff'],
+        mode: 'ui',
+        rotation: 0,
+        displayProfile: 'spectra6_7in3',
+        epdConfig: null,
+      });
+
+      expect(result.buffer).toBe(mockPreviewBuffer);
       expect(result.contentKey).toBe(createHash('sha256').update(mockComposedPng).digest('hex'));
     });
 
@@ -137,6 +164,49 @@ describe('RenderOrchestratorService', () => {
       mockPrismaService.screen.findUnique.mockResolvedValue(null);
 
       await expect(service.renderPreview(999)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when screen has no assigned device', async () => {
+      mockPrismaService.screen.findUnique.mockResolvedValue({
+        ...mockScreen,
+        deviceId: null,
+        device: null,
+      });
+
+      await expect(service.renderPreview(1)).rejects.toThrow(BadRequestException);
+    });
+
+    it('swaps width and height for slot composition when device rotation is 90 or 270', async () => {
+      mockPrismaService.screen.findUnique.mockResolvedValue({
+        ...mockScreen,
+        device: {
+          ...mockScreen.device,
+          rotation: 90,
+        },
+      });
+      mockScreenRenderService.renderSlots.mockResolvedValue([
+        { x: 0, y: 0, w: 480, h: 800, zIndex: 0, pngBuffer: Buffer.from('slot-png') },
+      ]);
+
+      await service.renderPreview(1);
+
+      // Composed at swapped dimensions: 480 × 800
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(mockScreenComposerService.compose).toHaveBeenCalledWith({
+        width: 480,
+        height: 800,
+        slots: expect.any(Array),
+      });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+
+      // Target output still physical dimensions: 800 × 480 with rotation: 90
+      expect(mockEpdImageService.renderPreview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          width: 800,
+          height: 480,
+          rotation: 90,
+        })
+      );
     });
   });
 
@@ -156,7 +226,8 @@ describe('RenderOrchestratorService', () => {
       expect(mockRenderCacheService.set).toHaveBeenCalledWith(
         mockCacheKey,
         mockComposedPng,
-        mockScreen.refreshRate * 1000
+        mockScreen.device.refreshRate * 1000,
+        mockScreen.id
       );
     });
 
@@ -186,7 +257,8 @@ describe('RenderOrchestratorService', () => {
       expect(mockRenderCacheService.set).toHaveBeenCalledWith(
         mockCacheKey,
         mockComposedPng,
-        mockScreen.refreshRate * 1000
+        mockScreen.device.refreshRate * 1000,
+        mockScreen.id
       );
     });
   });

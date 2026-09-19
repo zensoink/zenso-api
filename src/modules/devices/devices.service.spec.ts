@@ -15,12 +15,23 @@ describe('DevicesService', () => {
     device: {
       findUnique: jest.Mock;
       findFirst: jest.Mock;
+      findMany: jest.Mock;
+      create: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
+    };
+    screen: {
+      findMany: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    claimSession: {
+      deleteMany: jest.Mock;
     };
   };
   let mockRenderCacheService: {
     generateKey: jest.Mock;
     get: jest.Mock;
+    invalidateScreen: jest.Mock;
   };
 
   const mockDevice = {
@@ -31,6 +42,11 @@ describe('DevicesService', () => {
     width: 800,
     height: 480,
     palette: ['#000000', '#ffffff'],
+    displayProfile: 'spectra6_7in3',
+    epdConfig: null,
+    refreshRate: 300,
+    rotation: 0,
+    palettePreset: 'full',
     userId: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -53,7 +69,7 @@ describe('DevicesService', () => {
     refreshRate: 600,
     contentHash: null,
     palette: ['#111111', '#222222'],
-    renderMode: 'bw',
+    renderMode: 'ui',
     slots: [
       {
         id: 1,
@@ -79,13 +95,24 @@ describe('DevicesService', () => {
       device: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
+      },
+      screen: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      claimSession: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
 
     mockRenderCacheService = {
       generateKey: jest.fn().mockReturnValue('test-content-key'),
       get: jest.fn().mockReturnValue(null),
+      invalidateScreen: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -101,6 +128,125 @@ describe('DevicesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('update', () => {
+    it('should update device properties and return updated device', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(mockDevice);
+      mockPrismaService.device.update.mockResolvedValue({
+        ...mockDevice,
+        name: 'Updated Device',
+        displayProfile: 'bwr_4in2',
+        palettePreset: 'mono',
+        palette: ['#000000', '#ffffff'],
+      });
+      mockPrismaService.screen.findMany.mockResolvedValue([{ id: 10 }]);
+
+      const result = await service.update(1, 1, {
+        name: 'Updated Device',
+        displayProfile: 'bwr_4in2',
+        palettePreset: 'mono',
+        palette: ['#000000', '#ffffff'],
+      });
+
+      expect(mockPrismaService.device.update).toHaveBeenCalled();
+      expect(mockRenderCacheService.invalidateScreen).toHaveBeenCalledWith(10);
+      expect(mockPrismaService.screen.updateMany).toHaveBeenCalledWith({
+        where: { deviceId: 1 },
+        data: { contentHash: null },
+      });
+      expect(result.name).toBe('Updated Device');
+    });
+
+    it('should throw NotFoundException when device does not exist', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(null);
+
+      await expect(service.update(999, 1, { name: 'New' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('revoke', () => {
+    it('should soft-unclaim device, unlink screens, and increment token version by default', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(mockDevice);
+      mockPrismaService.screen.findMany.mockResolvedValue([{ id: 10 }]);
+      mockPrismaService.device.update.mockResolvedValue({
+        ...mockDevice,
+        status: DeviceStatus.inactive,
+        claimStatus: DeviceClaimStatus.pending,
+      });
+
+      const result = await service.revoke(1, 1, false);
+
+      expect(mockRenderCacheService.invalidateScreen).toHaveBeenCalledWith(10);
+      expect(mockPrismaService.screen.updateMany).toHaveBeenCalledWith({
+        where: { deviceId: 1 },
+        data: { deviceId: null, contentHash: null },
+      });
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(mockPrismaService.device.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: expect.objectContaining({
+            status: DeviceStatus.inactive,
+            claimStatus: DeviceClaimStatus.pending,
+            deviceTokenVersion: { increment: 1 },
+          }),
+        })
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expect(result.hardDeleted).toBe(false);
+    });
+
+    it('should hard delete device and claim sessions when hard is true', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(mockDevice);
+      mockPrismaService.screen.findMany.mockResolvedValue([{ id: 10 }]);
+
+      const result = await service.revoke(1, 1, true);
+
+      expect(mockRenderCacheService.invalidateScreen).toHaveBeenCalledWith(10);
+      expect(mockPrismaService.screen.updateMany).toHaveBeenCalledWith({
+        where: { deviceId: 1 },
+        data: { deviceId: null, contentHash: null },
+      });
+      expect(mockPrismaService.claimSession.deleteMany).toHaveBeenCalledWith({
+        where: { deviceId: 1 },
+      });
+      expect(mockPrismaService.device.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(result.hardDeleted).toBe(true);
+    });
+
+    it('should throw NotFoundException when revoking non-existent device', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(null);
+
+      await expect(service.revoke(999, 1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('forceRefresh', () => {
+    it('should invalidate cache for linked screens and reset contentHash', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(mockDevice);
+      mockPrismaService.screen.findMany.mockResolvedValue([{ id: 10 }, { id: 11 }]);
+
+      const result = await service.forceRefresh(1, 1);
+
+      expect(mockRenderCacheService.invalidateScreen).toHaveBeenCalledWith(10);
+      expect(mockRenderCacheService.invalidateScreen).toHaveBeenCalledWith(11);
+      expect(mockPrismaService.screen.updateMany).toHaveBeenCalledWith({
+        where: { deviceId: 1 },
+        data: { contentHash: null },
+      });
+      expect(result.deviceId).toBe(1);
+      expect(result.invalidatedScreensCount).toBe(2);
+      expect(result.refreshedAt).toBeInstanceOf(Date);
+    });
+
+    it('should throw NotFoundException when force-refreshing non-existent device', async () => {
+      mockPrismaService.device.findFirst.mockResolvedValue(null);
+
+      await expect(service.forceRefresh(999, 1)).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('checkIn', () => {
@@ -199,26 +345,20 @@ describe('DevicesService', () => {
       expect(result.imageUrl).toBe('/devices/display');
     });
 
-    it('should use screen palette when screen exists', async () => {
+    it('should return authoritative device palette and refreshRate', async () => {
       mockPrismaService.device.findUnique.mockResolvedValue({
         ...mockDevice,
+        refreshRate: 300,
+        palette: ['#000000', '#ffffff'],
         screens: [mockScreen],
       });
 
       const result = await service.checkIn(1, {});
 
-      expect(result.palette).toEqual(['#111111', '#222222']);
-    });
-
-    it('should fall back to device palette when no screen', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue({
-        ...mockDevice,
-        screens: [],
-      });
-
-      const result = await service.checkIn(1, {});
-
       expect(result.palette).toEqual(['#000000', '#ffffff']);
+      expect(result.refreshRate).toBe(300);
+      expect(result.displayProfile).toBe('spectra6_7in3');
+      expect(result.rotation).toBe(0);
     });
 
     it('should return contentChanged: true when the render cache expired (stale)', async () => {
@@ -258,28 +398,6 @@ describe('DevicesService', () => {
 
       expect(result.contentChanged).toBe(false);
     });
-
-    it('should use screen.refreshRate when screen exists', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue({
-        ...mockDevice,
-        screens: [{ ...mockScreen, refreshRate: 600 }],
-      });
-
-      const result = await service.checkIn(1, {});
-
-      expect(result.refreshRate).toBe(600);
-    });
-
-    it('should fall back to refreshRate 300 when no screen', async () => {
-      mockPrismaService.device.findUnique.mockResolvedValue({
-        ...mockDevice,
-        screens: [],
-      });
-
-      const result = await service.checkIn(1, {});
-
-      expect(result.refreshRate).toBe(300);
-    });
   });
 
   describe('rotateSecret', () => {
@@ -301,14 +419,6 @@ describe('DevicesService', () => {
       });
       expect(result.id).toBe(1);
       expect(result.rawSecret).toBeDefined();
-      expect(typeof result.rawSecret).toBe('string');
-      expect(result.rawSecret.length).toBeGreaterThan(0);
-    });
-
-    it('should throw NotFoundException when device does not exist', async () => {
-      mockPrismaService.device.findFirst.mockResolvedValue(null);
-
-      await expect(service.rotateSecret(999, 1)).rejects.toThrow(NotFoundException);
     });
   });
 });

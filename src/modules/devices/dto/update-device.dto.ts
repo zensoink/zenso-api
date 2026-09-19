@@ -1,10 +1,12 @@
 import { VALID_DISPLAY_PROFILE_IDS, VALID_PRESET_IDS } from '@modules/render';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { DeviceStatus } from '@prisma/client';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
   IsArray,
+  IsEnum,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -16,31 +18,21 @@ import {
   Min,
 } from 'class-validator';
 
-export class CreateDeviceDto {
-  @ApiProperty({
-    description: 'Canonical hardware identifier (12 uppercase hex chars, MAC without separators)',
-    example: 'E45F01234567',
-  })
+export class UpdateDeviceDto {
+  @ApiPropertyOptional({ description: 'Human-readable device name', example: 'Living Room Display' })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[0-9A-F]{12}$/, {
-    message: 'hardware_id must be the canonical 12-char uppercase MAC without separators (e.g. E45F01234567)',
-  })
-  hardware_id!: string;
+  name?: string;
 
-  @ApiProperty({ description: 'Human-readable device name', example: 'Living Room Display' })
-  @IsString()
-  @IsNotEmpty()
-  name!: string;
-
-  @ApiPropertyOptional({ description: 'Display width in pixels', example: 800 })
+  @ApiPropertyOptional({ description: 'Hardware display width in pixels', example: 800 })
   @IsOptional()
   @IsInt()
   @Min(100)
   @Max(4000)
   width?: number;
 
-  @ApiPropertyOptional({ description: 'Display height in pixels', example: 480 })
+  @ApiPropertyOptional({ description: 'Hardware display height in pixels', example: 480 })
   @IsOptional()
   @IsInt()
   @Min(100)
@@ -48,7 +40,7 @@ export class CreateDeviceDto {
   height?: number;
 
   @ApiPropertyOptional({
-    description: 'Color palette as hex strings (minimum 2 colors, maximum 7 colors)',
+    description: 'Color palette hex values (minimum 2 colors, maximum 7 colors)',
     example: ['#000000', '#FFFFFF', '#00FF00', '#0000FF', '#FF0000', '#FFFF00'],
   })
   @IsOptional()
@@ -98,4 +90,9 @@ export class CreateDeviceDto {
   @IsOptional()
   @IsIn(VALID_PRESET_IDS)
   palettePreset?: string;
+
+  @ApiPropertyOptional({ description: 'Device operational status', enum: DeviceStatus, example: DeviceStatus.active })
+  @IsOptional()
+  @IsEnum(DeviceStatus)
+  status?: DeviceStatus;
 }

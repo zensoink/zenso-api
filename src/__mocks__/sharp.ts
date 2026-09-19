@@ -2,6 +2,7 @@ const mockKernel = { lanczos3: 'lanczos3' };
 
 const mockSharp = jest.fn().mockReturnValue({
   resize: jest.fn().mockReturnThis(),
+  rotate: jest.fn().mockReturnThis(),
   modulate: jest.fn().mockReturnThis(),
   linear: jest.fn().mockReturnThis(),
   flatten: jest.fn().mockReturnThis(),

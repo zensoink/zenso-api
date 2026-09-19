@@ -5,6 +5,7 @@ import { Injectable } from '@nestjs/common';
 import { SlotRenderInput } from '../types/slot-render-input';
 
 interface CacheEntry {
+  screenId?: number;
   data: Buffer;
   expiresAt: number;
 }
@@ -41,11 +42,20 @@ export class RenderCacheService {
     return entry.data;
   }
 
-  set(key: string, data: Buffer, ttlMs: number): void {
+  set(key: string, data: Buffer, ttlMs: number, screenId?: number): void {
     this.cache.set(key, {
+      screenId,
       data,
       expiresAt: Date.now() + ttlMs,
     });
+  }
+
+  invalidateScreen(screenId: number): void {
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.screenId === screenId) {
+        this.cache.delete(key);
+      }
+    }
   }
 
   clear(): void {
