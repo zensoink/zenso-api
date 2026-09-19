@@ -1,3 +1,4 @@
+export * from './config/display-profiles.config';
 export * from './render.module';
 export * from './services/browser.service';
 export * from './services/context-aggregation.service';

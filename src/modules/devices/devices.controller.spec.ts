@@ -41,6 +41,9 @@ describe('DevicesController', () => {
   let mockDevicesService: {
     checkIn: jest.Mock;
     rotateSecret: jest.Mock;
+    update: jest.Mock;
+    revoke: jest.Mock;
+    forceRefresh: jest.Mock;
   };
 
   const mockDevice = {
@@ -50,6 +53,8 @@ describe('DevicesController', () => {
     width: 800,
     height: 480,
     palette: ['#000000', '#ffffff', '#ff0000'],
+    rotation: 0,
+    displayProfile: 'spectra6_7in3',
     userId: 1,
     screens: [
       {
@@ -79,6 +84,9 @@ describe('DevicesController', () => {
     mockDevicesService = {
       checkIn: jest.fn(),
       rotateSecret: jest.fn(),
+      update: jest.fn(),
+      revoke: jest.fn(),
+      forceRefresh: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -350,6 +358,98 @@ describe('DevicesController', () => {
 
       expect(mockDevicesService.rotateSecret).toHaveBeenCalledWith(1, 1);
       expect(result).toEqual({ id: 1, rawSecret: 'new-secret' });
+    });
+  });
+
+  describe('getDisplayProfiles', () => {
+    it('should return catalog containing 6 display profiles with presets', () => {
+      const profiles = controller.getDisplayProfiles();
+
+      expect(profiles.length).toBe(6);
+      const spectra = profiles.find(p => p.id === 'spectra6_7in3');
+      expect(spectra).toBeDefined();
+      expect(spectra?.hardwareNibbleMap).toEqual({
+        black: 0,
+        white: 1,
+        green: 2,
+        blue: 3,
+        red: 4,
+        yellow: 5,
+      });
+      expect(spectra?.presets.length).toBe(3);
+
+      const mono = profiles.find(p => p.id === 'mono_800x480');
+      expect(mono).toBeDefined();
+      expect(mono?.presets.length).toBe(1);
+    });
+  });
+
+  describe('update', () => {
+    it('should delegate to devicesService.update', async () => {
+      const dto = { name: 'New Name', rotation: 90 };
+      const req = { user: { userId: 1 } };
+      mockDevicesService.update.mockResolvedValue({ id: 1, ...dto });
+
+      const result = await controller.update(1, dto, req);
+
+      expect(mockDevicesService.update).toHaveBeenCalledWith(1, 1, dto);
+      expect(result).toEqual({ id: 1, ...dto });
+    });
+  });
+
+  describe('revoke', () => {
+    it('should call devicesService.revoke with hard=false by default', async () => {
+      const req = { user: { userId: 1 } };
+      mockDevicesService.revoke.mockResolvedValue({ deviceId: 1, hardDeleted: false });
+
+      const result = await controller.revoke(1, req, undefined);
+
+      expect(mockDevicesService.revoke).toHaveBeenCalledWith(1, 1, false);
+      expect(result).toEqual({ deviceId: 1, hardDeleted: false });
+    });
+
+    it('should call devicesService.revoke with hard=true when hard="true"', async () => {
+      const req = { user: { userId: 1 } };
+      mockDevicesService.revoke.mockResolvedValue({ deviceId: 1, hardDeleted: true });
+
+      const result = await controller.revoke(1, req, 'true');
+
+      expect(mockDevicesService.revoke).toHaveBeenCalledWith(1, 1, true);
+      expect(result).toEqual({ deviceId: 1, hardDeleted: true });
+    });
+  });
+
+  describe('forceRefresh', () => {
+    it('should delegate to devicesService.forceRefresh', async () => {
+      const req = { user: { userId: 1 } };
+      mockDevicesService.forceRefresh.mockResolvedValue({
+        deviceId: 1,
+        invalidatedScreensCount: 1,
+        refreshedAt: new Date(),
+      });
+
+      const result = await controller.forceRefresh(1, req);
+
+      expect(mockDevicesService.forceRefresh).toHaveBeenCalledWith(1, 1);
+      expect(result.deviceId).toBe(1);
+      expect(result.invalidatedScreensCount).toBe(1);
+    });
+  });
+
+  describe('getDisplay headers', () => {
+    it('should set diagnostic display headers on 200 response', async () => {
+      mockPrismaService.device.findUnique.mockResolvedValue(mockDevice);
+      const res = mockExpressResponse();
+      const req = mockDeviceRequest();
+
+      await controller.getDisplay(req, res as never, 'raw', undefined);
+
+      expect(res.set).toHaveBeenCalledWith('X-Display-Profile', 'spectra6_7in3');
+      expect(res.set).toHaveBeenCalledWith('X-Display-Width', '800');
+      expect(res.set).toHaveBeenCalledWith('X-Display-Height', '480');
+      expect(res.set).toHaveBeenCalledWith('X-Display-Bpp', '4');
+      expect(res.set).toHaveBeenCalledWith('X-Display-Rotation', '0');
+      expect(res.set).toHaveBeenCalledWith('X-Display-Nibbles', '0:black, 1:white, 2:green, 3:blue, 4:red, 5:yellow');
     });
   });
 });

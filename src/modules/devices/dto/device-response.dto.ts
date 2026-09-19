@@ -20,8 +20,34 @@ export class DeviceResponseDto {
   @ApiProperty({ description: 'Display height in pixels', example: 480 })
   height!: number;
 
-  @ApiProperty({ description: 'Color palette hex strings', example: ['#000000', '#FFFFFF'] })
+  @ApiProperty({
+    description: 'Color palette hex strings',
+    example: ['#000000', '#FFFFFF', '#00FF00', '#0000FF', '#FF0000', '#FFFF00'],
+  })
   palette!: string[];
+
+  @ApiProperty({ description: 'Display profile identifier', example: 'spectra6_7in3' })
+  displayProfile!: string;
+
+  @ApiPropertyOptional({
+    description: 'EPD dithering and tone mapping configuration',
+    example: { colorMatching: 'lab', ditheringType: 'errorDiffusion' },
+    nullable: true,
+  })
+  epdConfig?: Record<string, unknown> | null;
+
+  @ApiProperty({ description: 'Sleep cadence / polling interval in seconds', example: 300 })
+  refreshRate!: number;
+
+  @ApiProperty({ description: 'Display orientation in degrees', enum: [0, 90, 180, 270], example: 0 })
+  rotation!: number;
+
+  @ApiProperty({
+    description: 'Active palette preset name',
+    enum: ['full', '3color', 'mono', 'custom'],
+    example: 'full',
+  })
+  palettePreset!: string;
 
   @ApiProperty({ description: 'Current JWT token version (incremented on secret rotation)', example: 1 })
   deviceTokenVersion!: number;
